@@ -23,5 +23,3 @@ docs/venv
 # development
 .vscode
 **/.DS_Store
-
-results
