@@ -24,4 +24,5 @@ docs/venv
 .vscode
 **/.DS_Store
 
-results
+results_examples
+logs
