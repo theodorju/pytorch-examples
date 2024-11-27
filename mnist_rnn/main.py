@@ -103,6 +103,9 @@ def main():
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='for Saving the current Model')
+    parser.add_argument('--beta1', type=float, default=1.0, metavar='BETA1')
+    parser.add_argument('--beta2', type=float, default=1.0, metavar='BETA2')
+    parser.add_argument('--epsilon', type=float, default=1.0, metavar='EPS')
     args = parser.parse_args()
 
     if args.cuda and not args.mps:
@@ -132,13 +135,14 @@ def main():
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
     model = Net().to(device)
-    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    # optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(args.beta1, args.beta2), eps=args.epsilon)
 
-    scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
+    # scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
         test(args, model, device, test_loader)
-        scheduler.step()
+        # scheduler.step()
 
     if args.save_model:
         torch.save(model.state_dict(), "mnist_rnn.pt")
