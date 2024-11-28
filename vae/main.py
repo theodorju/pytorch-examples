@@ -21,6 +21,10 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
+parser.add_argument('--lr', type=float, default=1e-3, metavar='LR')
+parser.add_argument('--beta1', type=float, default=0.9, metavar='BETA1')
+parser.add_argument('--beta2', type=float, default=0.999, metavar='BETA2')
+parser.add_argument('--epsilon', type=float, default=1e-8, metavar='EPS')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 use_mps = not args.no_mps and torch.backends.mps.is_available()

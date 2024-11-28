@@ -94,9 +94,9 @@ def main():
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
-    parser.add_argument('--beta1', type=float, default=1.0, metavar='BETA1')
-    parser.add_argument('--beta2', type=float, default=1.0, metavar='BETA2')
-    parser.add_argument('--epsilon', type=float, default=1.0, metavar='EPS')
+    parser.add_argument('--beta1', type=float, default=0.9, metavar='BETA1')
+    parser.add_argument('--beta2', type=float, default=0.999, metavar='BETA2')
+    parser.add_argument('--epsilon', type=float, default=1e-8, metavar='EPS')
 
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
