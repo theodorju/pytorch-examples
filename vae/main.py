@@ -6,6 +6,29 @@ from torch import nn, optim
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
+import numpy as np
+
+def adaptive_gradient_clipping(model, clip_factor=10, percentile=95, max_history=100):
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            if not hasattr(param, 'grad_history'):
+                param.grad_history = [] 
+            param.grad_history.append(param.grad.norm().item())
+            param.grad_history = param.grad_history[-max_history:]
+
+            if param.grad_history:
+                mean_norm = np.mean(param.grad_history)
+                std_norm = np.std(param.grad_history)
+                percentile_norm = np.percentile(param.grad_history, percentile)
+                
+                threshold = min(
+                    percentile_norm, 
+                    mean_norm + clip_factor * std_norm
+                )
+                
+                current_grad_norm = param.grad.norm()
+                if current_grad_norm > threshold:
+                    param.grad.mul_(threshold / (current_grad_norm + 1e-6))
 
 
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
@@ -78,7 +101,8 @@ class VAE(nn.Module):
 
 
 model = VAE().to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
+# optimizer = optim.Adam(model.parameters(), lr=1e-3)
+optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 
 # Reconstruction + KL divergence losses summed over all elements and batch
@@ -103,6 +127,7 @@ def train(epoch):
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
         loss.backward()
+        adaptive_gradient_clipping(model, clip_factor=5)
         train_loss += loss.item()
         optimizer.step()
         if batch_idx % args.log_interval == 0:
