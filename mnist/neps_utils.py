@@ -1,16 +1,18 @@
-import time
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import neps
+import time
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-import yaml
 from neps.utils.common import load_checkpoint, save_checkpoint
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
+from neps_global_utils import set_seed, process_trajectory
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -38,10 +40,6 @@ class Net(nn.Module):
         x = self.fc2(x)
         output = F.log_softmax(x, dim=1)
         return output
-
-
-def set_seed(seed=123):
-    torch.manual_seed(seed)
 
 def evaluate_accuracy(model, data_loader, criterion):
     set_seed()
@@ -104,80 +102,6 @@ def train_epoch(model, optimizer, criterion, train_loader, validation_loader) ->
         optimizer.step()
     val_acc, val_err, val_loss =  evaluate_accuracy(model, validation_loader, criterion)
     return val_acc, val_err, val_loss
-
-
-def load_yaml(file_path):
-    with open(file_path, 'r') as f:
-        return yaml.safe_load(f)
-
-def get_pipeline_space(searcher) -> dict:
-    """define search space for neps"""
-    pipeline_space = dict(
-        learning_rate=neps.FloatParameter(
-            lower=1e-9,
-            upper=10,
-            log=True,
-        ),
-        beta1=neps.FloatParameter(
-            lower=1e-4,
-            upper=1,
-            log=True,
-        ),
-        beta2=neps.FloatParameter(
-            lower=1e-3,
-            upper=1,
-            log=True,
-        ),
-        epsilon=neps.FloatParameter(
-            lower=1e-12,
-            upper=1000,
-            log=True,
-        )
-    )
-    uses_fidelity = ("ifbo", "hyperband", "asha")
-    if searcher in uses_fidelity:
-        pipeline_space["epoch"] = neps.IntegerParameter(
-            lower=1,
-            upper=14,
-            is_fidelity=True,
-        )
-    return pipeline_space
-
-
-def process_trajectory(pipeline_directory, val_loss, test_loss):
-    id_fidelity_info = str(pipeline_directory).split("config_")[1]
-
-    if len(id_fidelity_info) == 1: ## random search - no fidelity hyperparameter
-        l_curves = {
-            'valid': [val_loss,], # single value
-            'test': [test_loss,], # single value
-            'fidelity': None
-        }
-        return l_curves, val_loss, test_loss
-    config_id, fidelity = list(map(int, id_fidelity_info.split("_")))
-    # load the results of the previous fidelity for this configuration
-    if fidelity == 0:
-        l_curves = {
-            'valid': [val_loss,],
-            'test': [test_loss,],
-            'fidelity': [1,],
-        }
-        return l_curves, val_loss, test_loss
-    previous_results = load_yaml(
-        pipeline_directory.parent
-        .joinpath(f"config_{config_id}_{fidelity-1}")
-        .joinpath('result.yaml')
-    )
-    l_curves = previous_results["info_dict"]["learning_curves"]
-    # update
-    l_curves['valid'].append(val_loss)
-    l_curves['test'].append(test_loss)
-    # increment by 1
-    l_curves['fidelity'].append(l_curves['fidelity'][-1] + 1)
-    min_valid_seen = min(val_loss, previous_results["info_dict"]["min_valid_seen"])
-    min_test_seen = min(test_loss, previous_results["info_dict"]["min_test_seen"])
-    return l_curves, min_valid_seen, min_test_seen
-
 
 def run_pipeline(
         pipeline_directory,
