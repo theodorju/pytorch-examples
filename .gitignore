@@ -26,3 +26,4 @@ docs/venv
 
 results_examples
 logs
+*.png

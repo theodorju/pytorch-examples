@@ -11,8 +11,8 @@ def set_seed(seed=123):
 
 def process_trajectory(pipeline_directory, val_loss, test_loss):
     id_fidelity_info = str(pipeline_directory).split("config_")[1]
-
-    if len(id_fidelity_info) == 1: ## random search - no fidelity hyperparameter
+    
+    if "random_search" in str(pipeline_directory) or "hyperband" in str(pipeline_directory): ## random search - no fidelity hyperparameter
         l_curves = {
             'valid': [val_loss,], # single value
             'test': [test_loss,], # single value
