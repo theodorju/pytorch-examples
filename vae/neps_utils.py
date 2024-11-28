@@ -214,7 +214,7 @@ def run_pipeline(
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(pipeline_directory, val_loss, test_loss)
     # random search - no fidelity hyperparameter
 
-    if learning_curves["fidelity"] is None:
+    if "random_search" in str(pipeline_directory) or "hyperband" in str(pipeline_directory):
         return {
         "loss": val_loss,
         "info_dict": {

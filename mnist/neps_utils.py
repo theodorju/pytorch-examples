@@ -76,8 +76,8 @@ def load_mnist(batch_size, valid_size, val_test_batch_size=1024, debug=False):
 
     # if debug only use a subsample of MNIST
     if debug:
-        train_idx = train_idx[:5_000]
-        valid_idx = valid_idx[:1_000]
+        train_idx = train_idx[:1_000]
+        valid_idx = valid_idx[:500]
 
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
@@ -123,7 +123,7 @@ def run_pipeline(
     )
 
     train_loader, validation_loader, test_loader = load_mnist(
-        batch_size=64, valid_size=0.2, debug=False
+        batch_size=64, valid_size=0.2, debug=True
     )
 
     # checkpointing to resume model training in higher fidelities
@@ -164,7 +164,7 @@ def run_pipeline(
         pipeline_directory, val_loss, test_loss
     )
     # random search - no fidelity hyperparameter
-    if learning_curves["fidelity"] is None:
+    if "random_search" in str(pipeline_directory) or "hyperband" in str(pipeline_directory):
         return {
         "loss": val_loss,
         "info_dict": {
