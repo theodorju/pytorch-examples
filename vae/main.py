@@ -8,7 +8,7 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 import numpy as np
 
-def adaptive_gradient_clipping(model, clip_factor=10, percentile=95, max_history=100):
+def adaptive_gradient_clipping(model, clip_factor=2, percentile=95, max_history=100):
     for name, param in model.named_parameters():
         if param.grad is not None:
             if not hasattr(param, 'grad_history'):
@@ -127,7 +127,7 @@ def train(epoch):
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
         loss.backward()
-        adaptive_gradient_clipping(model, clip_factor=5)
+        adaptive_gradient_clipping(model, clip_factor=2)
         train_loss += loss.item()
         optimizer.step()
         if batch_idx % args.log_interval == 0:

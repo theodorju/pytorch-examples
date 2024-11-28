@@ -126,7 +126,7 @@ def load_mnist(batch_size, valid_size, val_test_batch_size=1024, debug=False):
     return train_dataloader, validation_dataloader, test_dataloader
 
 
-def adaptive_gradient_clipping(model, clip_factor=10, percentile=95, max_history=100):
+def adaptive_gradient_clipping(model, clip_factor=2, percentile=95, max_history=100):
     for name, param in model.named_parameters():
         if param.grad is not None:
             if not hasattr(param, 'grad_history'):
@@ -159,7 +159,7 @@ def train_epoch(model, optimizer, criterion, train_loader, validation_loader):
         # criterion returns a float
         loss = criterion(recon_batch, data, mu, logvar)
         loss.backward()
-        adaptive_gradient_clipping(model, clip_factor=5)
+        adaptive_gradient_clipping(model, clip_factor=2)
         optimizer.step()
     val_loss = evaluate_accuracy(model, validation_loader, criterion)
     return val_loss
