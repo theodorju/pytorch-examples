@@ -1,26 +1,82 @@
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import time
 import torch
-import model as m
-import neps
+from model import TransformerModel, RNNModel
 from neps.utils.common import load_checkpoint, save_checkpoint
+from neps_global_utils import process_trajectory
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def train(model, optimizer, model_type, corpus):
-    # Turn on training mode which enables dropout.
+
+def get_batch(source, i, bptt):
+    seq_len = min(bptt, len(source) - 1 - i)
+    data = source[i : i + seq_len]
+    target = source[i + 1 : i + 1 + seq_len].view(-1)
+    return data, target
+
+
+def batchify(data, bsz):
+    # Work out how cleanly we can divide the dataset into bsz parts.
+    nbatch = data.size(0) // bsz
+    # Trim off any extra elements that wouldn't cleanly fit (remainders).
+    data = data.narrow(0, 0, nbatch * bsz)
+    # Evenly divide the data across the bsz batches.
+    data = data.view(bsz, -1).t().contiguous()
+    return data.to(device)
+
+
+def repackage_hidden(h):
+    """Wraps hidden states in new Tensors, to detach them from their history."""
+
+    if isinstance(h, torch.Tensor):
+        return h.detach()
+    else:
+        return tuple(repackage_hidden(v) for v in h)
+
+
+def evaluate(model, criterion, data, ntokens, eval_batch_size, bptt):
+    model.eval()
+    val_loss = 0.0
+    if not isinstance(model, TransformerModel):
+        hidden = model.init_hidden(eval_batch_size)
+    with torch.no_grad():
+        for i in range(0, data.size(0) - 1, bptt):
+            data, targets = get_batch(data, i, bptt)
+            if isinstance(model, TransformerModel):
+                output = model(data)
+                output = output.view(-1, ntokens)
+            else:
+                output, hidden = model(data, hidden)
+                hidden = repackage_hidden(hidden)
+            val_loss += len(data) * criterion(output, targets).item()
+    return val_loss / (len(data) - 1)
+
+
+def train_epoch(
+    model,
+    optimizer,
+    criterion,
+    ntokens,
+    train_data,
+    val_data,
+    eval_batch_size,
+    batch_size,
+    bptt,
+    clip,
+):
     model.train()
-    total_loss = 0.
-    start_time = time.time()
-    ntokens = len(corpus.dictionary)
-    if args.model != 'Transformer':
-        hidden = model.init_hidden(args.batch_size)
-    for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
-        data, targets = get_batch(train_data, i)
-        # Starting each batch, we detach the hidden state from how it was previously produced.
-        # If we didn't, the model would try backpropagating all the way to start of the dataset.
-        # model.zero_grad()
+
+    if not isinstance(model, TransformerModel):
+        hidden = model.init_hidden(batch_size)
+
+    for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
+        data, targets = get_batch(train_data, i, bptt)
         optimizer.zero_grad()
-        if args.model == 'Transformer':
+        if isinstance(model, TransformerModel):
             output = model(data)
             output = output.view(-1, ntokens)
         else:
@@ -28,99 +84,128 @@ def train(model, optimizer, model_type, corpus):
             output, hidden = model(data, hidden)
         loss = criterion(output, targets)
         loss.backward()
-
-        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-        # for p in model.parameters():
-        #     p.data.add_(p.grad, alpha=-lr)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
         optimizer.step()
 
-        total_loss += loss.item()
+    val_loss = evaluate(model, criterion, val_data, ntokens, eval_batch_size, bptt)
 
-        if batch % args.log_interval == 0 and batch > 0:
-            cur_loss = total_loss / args.log_interval
-            elapsed = time.time() - start_time
-            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
-                epoch, batch, len(train_data) // args.bptt, lr,
-                elapsed * 1000 / args.log_interval, cur_loss, math.exp(cur_loss)))
-            total_loss = 0
-            start_time = time.time()
-        if args.dry_run:
-            break
-
-def get_pipeline_space(searcher) -> dict:
-    """define search space for neps"""
-    pipeline_space = dict(
-        learning_rate=neps.FloatParameter(
-            lower=1e-9,
-            upper=10,
-            log=True,
-        ),
-        beta1=neps.FloatParameter(
-            lower=1e-4,
-            upper=1,
-            log=True,
-        ),
-        beta2=neps.FloatParameter(
-            lower=1e-3,
-            upper=1,
-            log=True,
-        ),
-        epsilon=neps.FloatParameter(
-            lower=1e-12,
-            upper=1000,
-            log=True,
-        )
-    )
-    uses_fidelity = ("ifbo", "hyperband", "asha")
-    if searcher in uses_fidelity:
-        pipeline_space["epoch"] = neps.IntegerParameter(
-            lower=1,
-            upper=14,
-            is_fidelity=True,
-        )
-    return pipeline_space
+    return val_loss
 
 
 def run_pipeline(
-        model_type,
-        ntokens,
-        emsize,
-        nhead,
-        nhid,
-        nlayers,
-        dropout,
-        tied,
-        pipeline_directory,
-        previous_pipeline_directory,
-        learning_rate,
-        beta1,
-        beta2,
-        epsilon,
-        epoch=40  # 40 default if not handled by the searcher
+    pipeline_directory,
+    previous_pipeline_directory,
+    learning_rate,
+    beta1,
+    beta2,
+    epsilon,
+    epoch=40,  # 40 default if not handled by the searcher
+    opts=None,
+    corpus=None,
+    eval_batch_size=10,
 ):
     start = time.time()
     epochs = int(epoch)
-    criterion = torch.nn.NLLLoss()
-    if model_type == 'transformer':
-        model = m.TransformerModel(ntokens, emsize, nhead, nhid, nlayers, dropout).to(device)
-    else:
-        model = m.RNNModel(model_type, ntokens, emsize, nhid, nlayers, dropout, tied).to(device)
-    optimizer = torch.optim.Adam(model.paramters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon)
 
-    previous_state = load_checkpoint(
-        directory=previous_pipeline_directory,
-        model=model,
-        optimizer=optimizer,
+    criterion = torch.nn.NLLLoss()
+
+    ntokens = len(corpus.dictionary)
+    if opts.model == "Transformer":
+        model = TransformerModel(
+            ntokens, opts.emsize, opts.nhead, opts.nhid, opts.nlayers, opts.dropout
+        ).to(device)
+    else:
+        model = RNNModel(
+            opts.model,
+            ntokens,
+            opts.emsize,
+            opts.nhid,
+            opts.nlayers,
+            opts.dropout,
+            opts.tied,
+        ).to(device)
+
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon
     )
 
-    if previous_state is not None:
-        start_epoch = previous_state["epochs_trained"]
-    else:
-        start_epoch = 0
+    previous_state = load_checkpoint(
+        directory=previous_pipeline_directory, model=model, optimizer=optimizer
+    )
 
-    val_errors = list()
+    start_epoch = previous_state["epochs_trained"] if previous_state is not None else 0
+    val_losses = list()
+
+    train_data = batchify(corpus.train, opts.batch_size)
+    val_data = batchify(corpus.valid, eval_batch_size)
+    test_data = batchify(corpus.test, eval_batch_size)
+
     for ep in range(start_epoch, epochs):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
-        
+        val_loss = train_epoch(
+            model,
+            optimizer,
+            criterion,
+            ntokens,
+            train_data,
+            val_data,
+            eval_batch_size,
+            opts.batch_size,
+            opts.bptt,
+            opts.clip,
+        )
+        val_losses.append(val_loss)
+    test_loss = evaluate(
+        model, criterion, test_data, ntokens, eval_batch_size, opts.bptt
+    )
+
+    save_checkpoint(
+        directory=pipeline_directory,
+        model=model,
+        optimizer=optimizer,
+        values_to_save={
+            "epochs_trained": epochs,
+        },
+    )
+
+    end = time.time()
+    learning_curves, min_valid_seen, min_test_seen = process_trajectory(
+        pipeline_directory, val_loss, test_loss
+    )
+    # random search - no fidelity hyperparameter
+
+    if "random_search" in str(pipeline_directory) or "hyperband" in str(
+        pipeline_directory
+    ):
+        return {
+            "loss": val_loss,
+            "info_dict": {
+                "test_loss": test_loss,
+                "val_losses": val_losses,
+                "train_time": end - start,
+                "cost": epochs - start_epoch,
+            },
+            "cost": epochs - start_epoch,
+        }
+
+    return {
+        "loss": val_loss,  # validation loss
+        "cost": epochs - start_epoch,
+        "info_dict": {
+            "cost": epochs - start_epoch,
+            "val_score": -val_loss,  # - validation loss for this fidelity
+            "test_score": test_loss,  # test loss (w/out minus)
+            "fidelity": epochs,
+            "continuation_fidelity": None,  # keep None
+            "start_time": start,
+            "end_time": end,
+            "max_fidelity_loss": None,
+            "max_fidelity_cost": None,
+            "min_valid_seen": min_valid_seen,
+            "min_test_seen": min_test_seen,
+            # "min_valid_ever": None,       # Cannot calculate for real datasets
+            # "min_test_ever": None,          # Cannot calculate for real datasets
+            "learning_curve": val_loss,  # validation loss (w/out minus)
+            "learning_curves": learning_curves,  # dict: valid: [..valid_losses..], test: [..test_losses..], fidelity: [1, 2, ...]
+        },
+    }
