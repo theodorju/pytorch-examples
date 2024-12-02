@@ -44,7 +44,7 @@ def main(args):
     )
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="mnist ifbo")
+    parser = argparse.ArgumentParser(description="gat ifbo")
     parser.add_argument("--searcher", type=str, default="ifbo")
     parser.add_argument("--max_cost_total", type=int, default=50)
     parser.add_argument("--overwrite_working_directory", action="store_true")

@@ -9,7 +9,7 @@ def load_yaml(file_path):
 def set_seed(seed=123):
     torch.manual_seed(seed)
 
-def process_trajectory(pipeline_directory, val_loss, test_loss):
+def process_trajectory(pipeline_directory, val_loss, test_loss=None):
     id_fidelity_info = str(pipeline_directory).split("config_")[1]
     
     if "random_search" in str(pipeline_directory) or "hyperband" in str(pipeline_directory): ## random search - no fidelity hyperparameter

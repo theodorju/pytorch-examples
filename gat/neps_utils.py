@@ -330,7 +330,7 @@ def run_pipeline(
         },
     )
     print(
-        "  Epoch {} / {} Val Error: {}".format(epochs, epochs, val_loss).ljust(2)
+        "  Epoch {} / {} Val Loss: {}".format(epochs, epochs, val_loss).ljust(2)
     )
     end = time.time()
 
