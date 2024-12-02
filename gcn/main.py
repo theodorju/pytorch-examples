@@ -156,12 +156,13 @@ def load_cora(path='./cora', device='cpu'):
     adj_mat = torch.sparse_coo_tensor(edges.T, torch.ones(E), (V, V), dtype=torch.int64) # Create the initial adjacency matrix as a sparse tensor
     adj_mat = torch.eye(V) + adj_mat # Add self-loops to the adjacency matrix
 
-    degree_mat = torch.sum(adj_mat, dim=1) # Compute the sum of each row in the adjacency matrix (degree matrix)
-    degree_mat = torch.sqrt(1 / degree_mat) # Compute the reciprocal square root of the degrees
-    degree_mat[degree_mat == float('inf')] = 0 # Handle division by zero cases
-    degree_mat = torch.diag(degree_mat).to_sparse() # Convert the degree matrix to a sparse diagonal matrix
+    # MINE: following operations fail with torch 1.13.1 (required by ifbo)
+    # degree_mat = torch.sum(adj_mat, dim=1) # Compute the sum of each row in the adjacency matrix (degree matrix)
+    # degree_mat = torch.sqrt(1 / degree_mat) # Compute the reciprocal square root of the degrees
+    # degree_mat[degree_mat == float('inf')] = 0 # Handle division by zero cases
+    # degree_mat = torch.diag(degree_mat).to_sparse() # Convert the degree matrix to a sparse diagonal matrix
 
-    adj_mat = degree_mat @ adj_mat @ degree_mat # Apply the renormalization trick
+    # adj_mat = degree_mat @ adj_mat @ degree_mat # Apply the renormalization trick
 
     return features.to_sparse().to(device), labels.to(device), adj_mat.to_sparse().to(device)
 

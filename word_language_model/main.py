@@ -171,6 +171,7 @@ def train():
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     if args.model != 'Transformer':
+        # if it's an RNN type model, re-initialize hidden state
         hidden = model.init_hidden(args.batch_size)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)

@@ -44,7 +44,7 @@ def process_trajectory(pipeline_directory, val_loss, test_loss):
     return l_curves, min_valid_seen, min_test_seen
 
 
-def get_pipeline_space(searcher) -> dict:
+def get_pipeline_space(searcher) -> dict:  # maybe limiting for ifbo
     """define search space for neps"""
     pipeline_space = dict(
         learning_rate=neps.FloatParameter(
