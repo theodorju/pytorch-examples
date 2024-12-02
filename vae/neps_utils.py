@@ -18,6 +18,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
+    # nan --> diverged
+    if torch.isnan(recon_x).any().item():
+        return float('inf')
     BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
 
     # see Appendix B from VAE paper:
@@ -158,6 +161,8 @@ def train_epoch(model, optimizer, criterion, train_loader, validation_loader):
         recon_batch, mu, logvar = model(data)
         # criterion returns a float
         loss = criterion(recon_batch, data, mu, logvar)
+        if loss == float('inf'):
+            return float('inf')
         loss.backward()
         adaptive_gradient_clipping(model, clip_factor=2)
         optimizer.step()
@@ -199,7 +204,11 @@ def run_pipeline(
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
         val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader)
         val_losses.append(val_loss)
-    test_loss = evaluate_accuracy(model, test_loder, criterion)
+    
+    if val_loss == float('inf'):
+        test_loss = float('inf')
+    else:
+        test_loss = evaluate_accuracy(model, test_loder, criterion)
 
     save_checkpoint(
         directory=pipeline_directory,
@@ -210,7 +219,11 @@ def run_pipeline(
         }
     )
     end = time.time()
-    print(f'====> Epoch: {epoch} Average loss: {np.mean(val_losses):.4f}')
+    if val_loss == float('inf'):
+        print(f"====> Diverged")
+    else:
+        print(f'====> Epoch: {epoch} Average loss: {np.mean(val_losses):.4f}')
+    
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(pipeline_directory, val_loss, test_loss)
     # random search - no fidelity hyperparameter
 
