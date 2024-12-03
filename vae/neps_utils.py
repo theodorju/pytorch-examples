@@ -3,6 +3,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import time
+import neps
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -15,6 +16,41 @@ from neps.utils.common import load_checkpoint, save_checkpoint
 from neps_global_utils import set_seed, process_trajectory
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def get_pipeline_space(searcher) -> dict:  # maybe limiting for ifbo
+    """define search space for neps"""
+    pipeline_space = dict(
+        learning_rate=neps.FloatParameter(
+            lower=1e-9,
+            upper=10,
+            log=True,
+        ),
+        beta1=neps.FloatParameter(
+            lower=1e-4,
+            upper=1,
+            log=True,
+        ),
+        beta2=neps.FloatParameter(
+            lower=1e-3,
+            upper=1,
+            log=True,
+        ),
+        epsilon=neps.FloatParameter(
+            lower=1e-12,
+            upper=1000,
+            log=True,
+        )
+    )
+    uses_fidelity = ("ifbo", "hyperband", "asha", "ifbo_taskset_4p", "ifbo_taskset_4p_extended")
+    if searcher in uses_fidelity:
+        pipeline_space["epoch"] = neps.IntegerParameter(
+            lower=1,
+            upper=50,
+            is_fidelity=True,
+        )
+    return pipeline_space
+
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
@@ -177,7 +213,7 @@ def run_pipeline(
         beta1,
         beta2,
         epsilon,
-        epoch=10 # 10 default if not handled by the searcher
+        epoch=50 # 50 default if not handled by the searcher
 ):
     start = time.time()
     # for mf algorithms

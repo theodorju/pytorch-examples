@@ -5,8 +5,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import argparse
 import logging
 import neps
-from neps_utils import run_pipeline
-from neps_global_utils import set_seed, get_pipeline_space
+from neps_utils import run_pipeline, get_pipeline_space
+from neps_global_utils import set_seed
 
 def main(args):
     set_seed(args.seed)

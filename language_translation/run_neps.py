@@ -8,8 +8,8 @@ import logging
 import neps
 from datetime import date
 from functools import partial
-from neps_utils import run_pipeline
-from neps_global_utils import set_seed, get_pipeline_space
+from neps_utils import run_pipeline, get_pipeline_space
+from neps_global_utils import set_seed
 
 
 def main(args):

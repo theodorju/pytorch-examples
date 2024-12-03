@@ -42,37 +42,3 @@ def process_trajectory(pipeline_directory, val_loss, test_loss=None):
     min_valid_seen = min(val_loss, previous_results["info_dict"]["min_valid_seen"])
     min_test_seen = min(test_loss, previous_results["info_dict"]["min_test_seen"])
     return l_curves, min_valid_seen, min_test_seen
-
-
-def get_pipeline_space(searcher) -> dict:  # maybe limiting for ifbo
-    """define search space for neps"""
-    pipeline_space = dict(
-        learning_rate=neps.FloatParameter(
-            lower=1e-9,
-            upper=10,
-            log=True,
-        ),
-        beta1=neps.FloatParameter(
-            lower=1e-4,
-            upper=1,
-            log=True,
-        ),
-        beta2=neps.FloatParameter(
-            lower=1e-3,
-            upper=1,
-            log=True,
-        ),
-        epsilon=neps.FloatParameter(
-            lower=1e-12,
-            upper=1000,
-            log=True,
-        )
-    )
-    uses_fidelity = ("ifbo", "hyperband", "asha")
-    if searcher in uses_fidelity:
-        pipeline_space["epoch"] = neps.IntegerParameter(
-            lower=1,
-            upper=14,
-            is_fidelity=True,
-        )
-    return pipeline_space
