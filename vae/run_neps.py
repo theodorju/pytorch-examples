@@ -13,7 +13,10 @@ def main(args):
     pipeline_space = get_pipeline_space(args.searcher)
     logging.basicConfig(level=logging.INFO)
 
-    # ifbo
+    # make directory if necessary
+    if not os.path.exists(f"results_examples/{args.searcher}"):
+        os.makedirs(f"results_examples/{args.searcher}")
+    
     neps.run(
         run_pipeline=run_pipeline,
         pipeline_space=pipeline_space,

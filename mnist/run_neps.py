@@ -13,11 +13,14 @@ def main(args):
     pipeline_space = get_pipeline_space(args.searcher)
     logging.basicConfig(level=logging.INFO)
 
-    # ifbo
+    # make directory if necessary
+    if not os.path.exists(f"results_examples/{args.searcher}"):
+        os.makedirs(f"results_examples/{args.searcher}")
+
     neps.run(
         run_pipeline=run_pipeline,
         pipeline_space=pipeline_space,
-        root_directory=f"results_examples/{args.searcher}_seed={args.seed}",
+        root_directory=f"results_examples/{args.searcher}/seed={args.seed}",
         overwrite_working_directory=args.overwrite_working_directory,
         max_cost_total=args.max_cost_total,
         searcher=args.searcher,

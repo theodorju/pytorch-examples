@@ -11,8 +11,7 @@ import torch.nn.functional as F
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from neps.utils.common import load_checkpoint, save_checkpoint
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data import DataLoader, random_split
 from neps_global_utils import set_seed, process_trajectory
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -87,7 +86,7 @@ def evaluate_accuracy(model, data_loader, criterion):
             data, target = data.to(device), target.to(device)
             output = model(data)
             pred = output.max(1, keepdim=True)[1]
-            loss += criterion(output, target).item()
+            loss += criterion(output, target).item() * data.size(0)
             correct += pred.eq(target.view_as(pred)).sum().item()
     accuracy = correct / len(data_loader.dataset)
     error = 1 - accuracy
@@ -95,31 +94,19 @@ def evaluate_accuracy(model, data_loader, criterion):
     return accuracy, error, loss
 
 
-def load_mnist(batch_size, valid_size, val_test_batch_size=1024, debug=False):
+def load_mnist(batch_size, valid_size, val_test_batch_size=1024):
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307), (0.3081))
     ])
 
-    train_dataset = datasets.MNIST(root="../data", train=True, transform=transform, download=True)
+    dataset = datasets.MNIST(root="../data", train=True, transform=transform, download=True)
     test_dataset = datasets.MNIST(root="../data", train=False, transform=transform)
 
-    n_train = len(train_dataset)
-    indices = list(range(n_train))
-    split = int(np.floor(valid_size * n_train))
-    train_idx = indices[:n_train - split]
-    valid_idx = indices[n_train-split:]
+    train_dataset, valid_dataset = random_split(dataset, [1-valid_size, valid_size], generator=torch.Generator().manual_seed(42))
 
-    # if debug only use a subsample of MNIST
-    if debug:
-        train_idx = train_idx[:1_000]
-        valid_idx = valid_idx[:500]
-
-    train_sampler = SubsetRandomSampler(train_idx)
-    valid_sampler = SubsetRandomSampler(valid_idx)
-
-    train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, sampler=train_sampler, shuffle=False)
-    validation_dataloader = DataLoader(dataset=train_dataset, batch_size=val_test_batch_size, sampler=valid_sampler, shuffle=False)
+    train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    validation_dataloader = DataLoader(dataset=valid_dataset, batch_size=val_test_batch_size, shuffle=False)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=val_test_batch_size, shuffle=False)
 
     return train_dataloader, validation_dataloader, test_dataloader
@@ -158,9 +145,7 @@ def run_pipeline(
         model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon
     )
 
-    train_loader, validation_loader, test_loader = load_mnist(
-        batch_size=64, valid_size=0.2, debug=True
-    )
+    train_loader, validation_loader, test_loader = load_mnist(batch_size=64, valid_size=0.2)
 
     # checkpointing to resume model training in higher fidelities
     previous_state = load_checkpoint(
@@ -191,9 +176,7 @@ def run_pipeline(
             "epochs_trained": epochs,
         }
     )
-    print(
-        "  Epoch {} / {} Val Error: {}".format(epochs, epochs, val_errors[-1]).ljust(2)
-    )
+    print(f"  Epoch {epochs} / {epochs} Val Loss: {val_loss}".ljust(2))
     end = time.time()
 
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(
@@ -206,6 +189,7 @@ def run_pipeline(
         "info_dict": {
             "test_accuracy": test_acc,
             "val_errors": val_errors,
+            "val_loss": val_loss,
             "train_time": end - start,
             "cost": epochs - start_epoch,
         },

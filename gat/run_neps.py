@@ -31,11 +31,14 @@ def main(args):
     
     run_pipeline_partial = partial(run_pipeline, n_hidden=args.n_hidden, dropout=args.dropout, leaky_relu_slope=args.leaky_relu_slope, concat_heads=args.concat_heads, n_heads=args.n_heads)
 
-    # ifbo
+    # make directory if necessary
+    if not os.path.exists(f"results_examples/{args.searcher}"):
+        os.makedirs(f"results_examples/{args.searcher}")
+
     neps.run(
         run_pipeline=run_pipeline_partial,
         pipeline_space=pipeline_space,
-        root_directory=f"results_examples/{args.searcher}_seed={args.seed}",
+        root_directory=f"results_examples/{args.searcher}/seed={args.seed}",
         overwrite_working_directory=args.overwrite_working_directory,
         max_cost_total=args.max_cost_total,
         searcher=args.searcher,

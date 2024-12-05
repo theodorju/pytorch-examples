@@ -10,8 +10,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data import DataLoader, random_split
 from neps.utils.common import load_checkpoint, save_checkpoint
 from neps_global_utils import set_seed, process_trajectory
 
@@ -95,35 +94,6 @@ class VAE(nn.Module):
         z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
 
-def load_mnist(batch_size, valid_size, val_test_batch_size=1024, debug=False):
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307), (0.3081))
-    ])
-
-    train_dataset = datasets.MNIST(root="../data", train=True, transform=transform, download=True)
-    test_dataset = datasets.MNIST(root="../data", train=False, transform=transform)
-
-    n_train = len(train_dataset)
-    indices = list(range(n_train))
-    split = int(np.floor(valid_size * n_train))
-    train_idx = indices[:n_train - split]
-    valid_idx = indices[n_train-split:]
-
-    # if debug only use a subsample of MNIST
-    if debug:
-        train_idx = train_idx[:5_000]
-        valid_idx = valid_idx[:1_000]
-
-    train_sampler = SubsetRandomSampler(train_idx)
-    valid_sampler = SubsetRandomSampler(valid_idx)
-
-    train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, sampler=train_sampler, shuffle=False)
-    validation_dataloader = DataLoader(dataset=train_dataset, batch_size=val_test_batch_size, sampler=valid_sampler, shuffle=False)
-    test_dataloader = DataLoader(dataset=test_dataset, batch_size=val_test_batch_size, shuffle=False)
-
-    return train_dataloader, validation_dataloader, test_dataloader
-
 def evaluate_accuracy(model, data_loader, criterion):
     set_seed()
     model.eval()
@@ -132,34 +102,23 @@ def evaluate_accuracy(model, data_loader, criterion):
         for i, (data, _) in enumerate(data_loader):
             data = data.to(device)
             recon_batch, mu, logvar = model(data)
-            loss += criterion(recon_batch, data, mu, logvar).item()
+            loss += criterion(recon_batch, data, mu, logvar).item() * data.size(0)
     loss /= len(data_loader.dataset)
     return loss
 
-def load_mnist(batch_size, valid_size, val_test_batch_size=1024, debug=False):
+def load_mnist(batch_size, valid_size, val_test_batch_size=1024):
     transform = transforms.Compose([
         transforms.ToTensor(),
+        transforms.Normalize((0.1307), (0.3081))
     ])
 
-    train_dataset = datasets.MNIST(root="../data", train=True, transform=transform, download=True)
+    dataset = datasets.MNIST(root="../data", train=True, transform=transform, download=True)
     test_dataset = datasets.MNIST(root="../data", train=False, transform=transform)
 
-    n_train = len(train_dataset)
-    indices = list(range(n_train))
-    split = int(np.floor(valid_size * n_train))
-    train_idx = indices[:n_train - split]
-    valid_idx = indices[n_train-split:]
+    train_dataset, valid_dataset = random_split(dataset, [1-valid_size, valid_size], generator=torch.Generator().manual_seed(42))
 
-    # if debug only use a subsample of MNIST
-    if debug:
-        train_idx = train_idx[:5_000]
-        valid_idx = valid_idx[:1_000]
-
-    train_sampler = SubsetRandomSampler(train_idx)
-    valid_sampler = SubsetRandomSampler(valid_idx)
-
-    train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, sampler=train_sampler, shuffle=False)
-    validation_dataloader = DataLoader(dataset=train_dataset, batch_size=val_test_batch_size, sampler=valid_sampler, shuffle=False)
+    train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    validation_dataloader = DataLoader(dataset=valid_dataset, batch_size=val_test_batch_size, shuffle=False)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=val_test_batch_size, shuffle=False)
 
     return train_dataloader, validation_dataloader, test_dataloader
@@ -223,9 +182,7 @@ def run_pipeline(
     model = VAE().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon)
 
-    train_loader, validation_loader, test_loder = load_mnist(
-        batch_size=128, valid_size=0.2, debug=False
-    )
+    train_loader, validation_loader, test_loder = load_mnist(batch_size=128, valid_size=0.2)
 
     previous_state = load_checkpoint(
         directory=previous_pipeline_directory,
@@ -258,7 +215,7 @@ def run_pipeline(
     if val_loss == float('inf'):
         print(f"====> Diverged")
     else:
-        print(f'====> Epoch: {epoch} Average loss: {np.mean(val_losses):.4f}')
+        print(f'====> Epoch: {epoch} Val loss: {val_loss}')
     
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(pipeline_directory, val_loss, test_loss)
     # random search - no fidelity hyperparameter

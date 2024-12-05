@@ -363,9 +363,7 @@ def run_pipeline(
             "epochs_trained": epochs,
         },
     )
-    print(
-        "  Epoch {} / {} Val Loss: {}".format(epochs, epochs, val_loss).ljust(2)
-    )
+    print(f"  Epoch {epochs} / {epochs} Val Loss: {val_loss}".ljust(2))
     end = time.time()
 
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(
@@ -375,6 +373,7 @@ def run_pipeline(
     if "random_search" in str(pipeline_directory) or "hyperband" in str(
         pipeline_directory
     ):
+
         return {
             "loss": val_loss,
             "info_dict": {

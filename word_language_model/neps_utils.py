@@ -80,14 +80,14 @@ def evaluate(model, criterion, data, ntokens, eval_batch_size, bptt):
         hidden = model.init_hidden(eval_batch_size)
     with torch.no_grad():
         for i in range(0, data.size(0) - 1, bptt):
-            data, targets = get_batch(data, i, bptt)
+            input, targets = get_batch(data, i, bptt)
             if isinstance(model, TransformerModel):
-                output = model(data)
+                output = model(input)
                 output = output.view(-1, ntokens)
             else:
-                output, hidden = model(data, hidden)
+                output, hidden = model(input, hidden)
                 hidden = repackage_hidden(hidden)
-            val_loss += len(data) * criterion(output, targets).item()
+            val_loss += len(input) * criterion(output, targets).item()
     return val_loss / (len(data) - 1)
 
 
@@ -204,6 +204,9 @@ def run_pipeline(
     )
 
     end = time.time()
+
+    print(f"  Epoch {epochs} / {epochs} Val Loss: {val_loss}".ljust(2))
+    
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(
         pipeline_directory, val_loss, test_loss
     )

@@ -27,7 +27,10 @@ def main(args):
     
     run_pipeline_partial = partial(run_pipeline, hidden_dim=args.hidden_dim, dropout_p=args.dropout_p, include_bias=args.include_bias)
 
-    # ifbo
+    # make directory if necessary
+    if not os.path.exists(f"results_examples/{args.searcher}"):
+        os.makedirs(f"results_examples/{args.searcher}")
+    
     neps.run(
         run_pipeline=run_pipeline_partial,
         pipeline_space=pipeline_space,
