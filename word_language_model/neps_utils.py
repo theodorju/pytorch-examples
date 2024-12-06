@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import time
 import torch
+import numpy as np
 import neps
 from model import TransformerModel, RNNModel
 from neps.utils.common import load_checkpoint, save_checkpoint
@@ -108,7 +109,7 @@ def train_epoch(
     if not isinstance(model, TransformerModel):
         hidden = model.init_hidden(batch_size)
 
-    for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
+    for _, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
         data, targets = get_batch(train_data, i, bptt)
         optimizer.zero_grad()
         if isinstance(model, TransformerModel):
@@ -169,11 +170,12 @@ def run_pipeline(
     )
 
     start_epoch = previous_state["epochs_trained"] if previous_state is not None else 0
-    val_losses = list()
 
     train_data = batchify(corpus.train, opts.batch_size)
     val_data = batchify(corpus.valid, eval_batch_size)
     test_data = batchify(corpus.test, eval_batch_size)
+
+    val_losses, test_losses = [], []
 
     for ep in range(start_epoch, epochs):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
@@ -189,10 +191,11 @@ def run_pipeline(
             opts.bptt,
             opts.clip,
         )
-        val_losses.append(val_loss)
-    test_loss = evaluate(
-        model, criterion, test_data, ntokens, eval_batch_size, opts.bptt
-    )
+        val_losses.append(val_loss.item())
+        test_loss = evaluate(
+            model, criterion, test_data, ntokens, eval_batch_size, opts.bptt
+        )
+        test_losses.append(test_loss)
 
     save_checkpoint(
         directory=pipeline_directory,
@@ -208,42 +211,28 @@ def run_pipeline(
     print(f"  Epoch {epochs} / {epochs} Val Loss: {val_loss}".ljust(2))
     
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(
-        pipeline_directory, val_loss, test_loss
+        pipeline_directory, val_loss, val_losses, test_losses, test_loss
     )
-    # random search - no fidelity hyperparameter
-
-    if "random_search" in str(pipeline_directory) or "hyperband" in str(
-        pipeline_directory
-    ):
-        return {
-            "loss": val_loss,
-            "info_dict": {
-                "test_loss": test_loss,
-                "val_losses": val_losses,
-                "train_time": end - start,
-                "cost": epochs - start_epoch,
-            },
-            "cost": epochs - start_epoch,
-        }
 
     return {
-        "loss": val_loss,  # validation loss
         "cost": epochs - start_epoch,
         "info_dict": {
+            "continuation_fidelity": None,
             "cost": epochs - start_epoch,
-            "val_score": -val_loss,  # - validation loss for this fidelity
-            "test_score": test_loss,  # test loss (w/out minus)
-            "fidelity": epochs,
-            "continuation_fidelity": None,  # keep None
-            "start_time": start,
             "end_time": end,
-            "max_fidelity_loss": None,
-            "max_fidelity_cost": None,
-            "min_valid_seen": min_valid_seen,
-            "min_test_seen": min_test_seen,
-            # "min_valid_ever": None,       # Cannot calculate for real datasets
-            # "min_test_ever": None,          # Cannot calculate for real datasets
-            "learning_curve": val_loss,  # validation loss (w/out minus)
-            "learning_curves": learning_curves,  # dict: valid: [..valid_losses..], test: [..test_losses..], fidelity: [1, 2, ...]
+            "fidelity": epochs,
+            "learning_curve": val_losses,
+            "learning_curves": learning_curves,
+            "max_fidelity_cost": epochs,
+            "max_fidelity_loss": val_losses[-1],
+            # "min_test_ever": np.min(test_losses),
+            "min_test_seen": np.min(learning_curves["test"]),
+            # "min_valid_ever": np.min(val_losses),
+            "min_valid_seen": np.min(learning_curves["valid"]),
+            "process_id": os.getpid(),
+            "start_time": start,
+            "test_score": test_loss,
+            "val_score": -val_loss,
         },
+        "loss": val_loss,
     }
