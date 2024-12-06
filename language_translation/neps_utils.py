@@ -1,4 +1,6 @@
 import time
+import os
+import numpy as np
 import torch
 import neps
 from main import get_data, Translator, train, validate
@@ -83,10 +85,14 @@ def run_pipeline(
     else:
         start_epoch = 0
 
+    val_losses = []
+
     for idx, ep in enumerate(range(start_epoch, epochs)):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
         train_loss = train(model, train_dl, loss_fn, optimizer, special_symbols, opts)
         val_loss = validate(model, valid_dl, loss_fn, special_symbols)
+        val_losses.append(val_loss)
+
 
     save_checkpoint(
         directory=pipeline_directory,
@@ -100,7 +106,7 @@ def run_pipeline(
     end = time.time()
 
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(
-        pipeline_directory, val_loss, None,
+        pipeline_directory, val_loss, val_losses, test_losses=None, test_loss=None
     )
     # random search - no fidelity hyperparameter
     if "random_search" in str(pipeline_directory) or "hyperband" in str(
@@ -113,28 +119,31 @@ def run_pipeline(
                 "val_errors": None,
                 "train_time": end - start,
                 "cost": epochs - start_epoch,
+                "start_time": start,
+                "end_time": end,
             },
             "cost": epochs - start_epoch,
         }
 
     return {
-        "loss": val_loss,  # validation loss
         "cost": epochs - start_epoch,
         "info_dict": {
+            "continuation_fidelity": None,
             "cost": epochs - start_epoch,
-            "val_score": -val_loss,  # - validation loss for this fidelity
-            "test_score": None,  # test loss (w/out minus)
-            "fidelity": epochs,
-            "continuation_fidelity": None,  # keep None
-            "start_time": start,
             "end_time": end,
-            "max_fidelity_loss": None,
-            "max_fidelity_cost": None,
-            "min_valid_seen": min_valid_seen,
-            "min_test_seen": min_test_seen,
-            # "min_valid_ever": None,       # Cannot calculate for real datasets
-            # "min_test_ever": None,          # Cannot calculate for real datasets
-            "learning_curve": val_loss,  # validation loss (w/out minus)
-            "learning_curves": learning_curves,  # dict: valid: [..valid_losses..], test: [..test_losses..], fidelity: [1, 2, ...]
+            "fidelity": epochs,
+            "learning_curve": val_losses,
+            "learning_curves": learning_curves,
+            "max_fidelity_cost": epochs,
+            "max_fidelity_loss": val_losses[-1],
+            # "min_test_ever": np.min(test_losses),
+            "min_test_seen": None,
+            # "min_valid_ever": np.min(val_losses),
+            "min_valid_seen": np.min(learning_curves["valid"]),
+            "process_id": os.getpid(),
+            "start_time": start,
+            "test_score": None,
+            "val_score": -val_loss,
         },
+        "loss": val_loss,
     }
