@@ -126,7 +126,7 @@ def run_pipeline(
             "min_valid_seen": np.min(learning_curves["valid"]),
             "process_id": os.getpid(),
             "start_time": start,
-            "test_score": test_loss,
+            "test_score": None,
             "val_score": -val_loss,
         },
         "loss": val_loss,
