@@ -159,15 +159,16 @@ def run_pipeline(
     else:
         start_epoch = 0
 
-    val_errors = list()
+    val_losses, test_losses = [], []
 
     # train the model
     for ep in range(start_epoch, epochs):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
         val_acc, val_error, val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader)
-        val_errors.append(val_error)
-    test_acc, test_error, test_loss = evaluate_accuracy(model, test_loader, criterion)
-
+        val_losses.append(val_loss.item())
+        test_acc, test_error, test_loss = evaluate_accuracy(model, test_loader, criterion)
+        test_losses.append(test_loss.item())
+    
     save_checkpoint(
         directory=pipeline_directory,
         model=model,
@@ -180,40 +181,28 @@ def run_pipeline(
     end = time.time()
 
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(
-        pipeline_directory, val_loss, test_loss
+        pipeline_directory, val_loss, val_losses, test_losses, test_loss
     )
-    # random search - no fidelity hyperparameter
-    if "random_search" in str(pipeline_directory) or "hyperband" in str(pipeline_directory):
-        return {
-        "loss": val_loss,
-        "info_dict": {
-            "test_accuracy": test_acc,
-            "val_errors": val_errors,
-            "val_loss": val_loss,
-            "train_time": end - start,
-            "cost": epochs - start_epoch,
-        },
-        "cost": epochs - start_epoch,
-    }
 
     return {
-        "loss": val_loss,             # validation loss 
         "cost": epochs - start_epoch,
         "info_dict": {
+            "continuation_fidelity": None,
             "cost": epochs - start_epoch,
-            "val_score": -val_loss,  # - validation loss for this fidelity
-            "test_score": test_loss, # test loss (w/out minus)
-            "fidelity": epochs,
-            "continuation_fidelity": None,   # keep None
-            "start_time": start,
             "end_time": end,
-            "max_fidelity_loss": None,
-            "max_fidelity_cost": None,
-            "min_valid_seen": min_valid_seen,
-            "min_test_seen": min_test_seen,
-            # "min_valid_ever": None,       # Cannot calculate for real datasets
-            # "min_test_ever": None,          # Cannot calculate for real datasets
-            "learning_curve": val_loss, # validation loss (w/out minus)
-            "learning_curves": learning_curves # dict: valid: [..valid_losses..], test: [..test_losses..], fidelity: [1, 2, ...]
+            "fidelity": epochs,
+            "learning_curve": val_losses,
+            "learning_curves": learning_curves,
+            "max_fidelity_cost": epochs,
+            "max_fidelity_loss": val_losses[-1],
+            # "min_test_ever": np.min(test_losses),
+            "min_test_seen": np.min(learning_curves["test"]),
+            # "min_valid_ever": np.min(val_losses),
+            "min_valid_seen": np.min(learning_curves["valid"]),
+            "process_id": os.getpid(),
+            "start_time": start,
+            "test_score": test_loss,
+            "val_score": -val_loss,
         },
+        "loss": val_loss,
     }
