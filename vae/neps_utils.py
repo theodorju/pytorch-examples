@@ -197,14 +197,14 @@ def run_pipeline(
     for ep in range(start_epoch, epochs):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
         val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader)
-        val_losses.append(val_loss.item())
+        val_losses.append(val_loss)
     
         if val_loss == float('inf'):
             test_loss = float('inf')
             test_losses.append(test_loss)
         else:
             test_loss = evaluate_accuracy(model, test_loder, criterion)
-            test_losses.append(test_loss.item())
+            test_losses.append(test_loss)
 
     save_checkpoint(
         directory=pipeline_directory,
