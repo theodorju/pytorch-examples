@@ -165,9 +165,9 @@ def run_pipeline(
     for ep in range(start_epoch, epochs):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
         val_acc, val_error, val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader)
-        val_losses.append(val_loss.item())
+        val_losses.append(val_loss)
         test_acc, test_error, test_loss = evaluate_accuracy(model, test_loader, criterion)
-        test_losses.append(test_loss.item())
+        test_losses.append(test_loss)
     
     save_checkpoint(
         directory=pipeline_directory,

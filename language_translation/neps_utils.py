@@ -108,22 +108,6 @@ def run_pipeline(
     learning_curves, min_valid_seen, min_test_seen = process_trajectory(
         pipeline_directory, val_loss, val_losses, test_losses=None, test_loss=None
     )
-    # random search - no fidelity hyperparameter
-    if "random_search" in str(pipeline_directory) or "hyperband" in str(
-        pipeline_directory
-    ):
-        return {
-            "loss": val_loss,
-            "info_dict": {
-                "test_accuracy": None,
-                "val_errors": None,
-                "train_time": end - start,
-                "cost": epochs - start_epoch,
-                "start_time": start,
-                "end_time": end,
-            },
-            "cost": epochs - start_epoch,
-        }
 
     return {
         "cost": epochs - start_epoch,
@@ -137,12 +121,12 @@ def run_pipeline(
             "max_fidelity_cost": epochs,
             "max_fidelity_loss": val_losses[-1],
             # "min_test_ever": np.min(test_losses),
-            "min_test_seen": None,
+            "min_test_seen": np.min(learning_curves["test"]),
             # "min_valid_ever": np.min(val_losses),
             "min_valid_seen": np.min(learning_curves["valid"]),
             "process_id": os.getpid(),
             "start_time": start,
-            "test_score": None,
+            "test_score": test_loss,
             "val_score": -val_loss,
         },
         "loss": val_loss,
