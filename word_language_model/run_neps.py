@@ -18,15 +18,15 @@ def main(args):
     corpus = data.Corpus(args.data)
 
     run_pipeline_partial = partial(run_pipeline, opts=args, corpus=corpus, eval_batch_size=args.eval_batch_size)
-
+    neps_root_directory = f"results_examples/benchmark=word_lm/algorithm={args.searcher}/seed={args.seed}/neps_root_directory"
     # make directory if necessary
-    if not os.path.exists(f"results_examples/{args.searcher}"):
-        os.makedirs(f"results_examples/{args.searcher}")
+    if not os.path.exists(neps_root_directory):
+        os.makedirs(neps_root_directory)
     
     neps.run(
         run_pipeline=run_pipeline_partial,
         pipeline_space=pipeline_space,
-        root_directory=f"results_examples/{args.searcher}/seed={args.seed}",
+        root_directory=neps_root_directory,
         overwrite_working_directory=args.overwrite_working_directory,
         max_cost_total=args.max_cost_total,
         searcher=args.searcher,
