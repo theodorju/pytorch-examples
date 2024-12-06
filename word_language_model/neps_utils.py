@@ -191,7 +191,7 @@ def run_pipeline(
             opts.bptt,
             opts.clip,
         )
-        val_losses.append(val_loss.item())
+        val_losses.append(val_loss)
         test_loss = evaluate(
             model, criterion, test_data, ntokens, eval_batch_size, opts.bptt
         )
