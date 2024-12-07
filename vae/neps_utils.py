@@ -109,7 +109,6 @@ def evaluate_accuracy(model, data_loader, criterion):
 def load_mnist(batch_size, valid_size, val_test_batch_size=1024):
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.1307), (0.3081))
     ])
 
     dataset = datasets.MNIST(root="../data", train=True, transform=transform, download=True)
