@@ -102,14 +102,12 @@ def evaluate_accuracy(model, data_loader, criterion):
         for i, (data, _) in enumerate(data_loader):
             data = data.to(device)
             recon_batch, mu, logvar = model(data)
-            loss += criterion(recon_batch, data, mu, logvar).item() * data.size(0)
+            loss += criterion(recon_batch, data, mu, logvar).item()
     loss /= len(data_loader.dataset)
     return loss
 
 def load_mnist(batch_size, valid_size, val_test_batch_size=1024):
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
+    transform = transforms.Compose([transforms.ToTensor()])
 
     dataset = datasets.MNIST(root="../data", train=True, transform=transform, download=True)
     test_dataset = datasets.MNIST(root="../data", train=False, transform=transform)
