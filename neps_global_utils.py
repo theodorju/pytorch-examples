@@ -45,7 +45,8 @@ def process_trajectory(pipeline_directory, val_loss, val_losses, test_losses, te
     learning_curves = previous_results["info_dict"]["learning_curves"]
     # update
     learning_curves['valid'].extend(val_losses)
-    learning_curves['test'].extend(test_losses)
+    if test_losses is not None:
+        learning_curves['test'].extend(test_losses)
     learning_curves['fidelity'] = [i for i in range(1, len(learning_curves['valid']) + 1)]
     min_valid_seen = min(val_loss, previous_results["info_dict"].get("min_valid_seen", val_loss))
     min_test_seen = min(test_loss, previous_results["info_dict"].get("min_test_seen", test_loss))
