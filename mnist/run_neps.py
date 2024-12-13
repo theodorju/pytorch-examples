@@ -27,6 +27,12 @@ def main(args):
         searcher=args.searcher,
         searcher_path=args.searcher_path,
         post_run_summary=True,
+        surrogate_model_args={
+            'soft_ub': 2.31,
+            'soft_lb': 0.0,
+            'lb': 0.0,
+            'already_normalized': False,
+        },
     )
 
 if __name__ == "__main__":

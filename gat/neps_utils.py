@@ -38,7 +38,7 @@ def get_pipeline_space(searcher) -> dict:  # maybe limiting for ifbo
     if searcher in uses_fidelity:
         pipeline_space["epoch"] = neps.IntegerParameter(
             lower=1,
-            upper=300,
+            upper=50,
             is_fidelity=True,
         )
     return pipeline_space
@@ -306,7 +306,7 @@ def run_pipeline(
     beta1,
     beta2,
     epsilon,
-    epoch=300,  # 300 default if not handled by the searcher
+    epoch=50,  # 300 default if not handled by the searcher
     n_hidden=64,
     dropout=0.6,
     leaky_relu_slope=0.2,
