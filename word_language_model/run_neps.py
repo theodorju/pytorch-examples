@@ -6,9 +6,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import argparse
 import logging
 import neps
+import torch
 import data
 from neps_utils import run_pipeline, get_pipeline_space
-from neps_global_utils import set_seed
+from neps_global_utils import set_seed, create_3d_plot
 from functools import partial
 
 def main(args):
@@ -23,17 +24,26 @@ def main(args):
     if not os.path.exists(neps_root_directory):
         os.makedirs(neps_root_directory)
     
-    neps.run(
-        run_pipeline=run_pipeline_partial,
-        pipeline_space=pipeline_space,
-        root_directory=neps_root_directory,
-        overwrite_working_directory=args.overwrite_working_directory,
-        max_cost_total=args.max_cost_total,
-        searcher=args.searcher,
-        searcher_path=args.searcher_path,
-        post_run_summary=True,
-    )
-
+    if not args.plot_only:
+        neps.run(
+            run_pipeline=run_pipeline_partial,
+            pipeline_space=pipeline_space,
+            root_directory=neps_root_directory,
+            overwrite_working_directory=args.overwrite_working_directory,
+            max_cost_total=args.max_cost_total,
+            searcher=args.searcher,
+            searcher_path=args.searcher_path,
+            post_run_summary=True,
+            surrogate_model_args={
+                "soft_ub": 10.412651796975453,  # np.log(len(corpus.dictionary)=33278)
+                "soft_lb": 0.0,
+                "lb": 0.0,
+                "already_normalized": False,
+            }
+        )
+    
+    if "ifbo" in args.searcher: # includes any ifbo variant
+        create_3d_plot(args.searcher, args.seed, neps_root_directory, "word_lm", soft_lb=torch.tensor(0.0), soft_ub=torch.tensor(10.412651796975453), lb=torch.tensor(0.0), minimize=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="word language model ifbo")
@@ -113,6 +123,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dry-run", action="store_true", help="verify the code and the model"
     )
-
+    parser.add_argument("--plot_only", action="store_true")
     args = parser.parse_args()
     main(args)
