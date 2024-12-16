@@ -1,6 +1,8 @@
 import yaml
 import torch
-import neps
+import pandas as pd
+from pathlib import Path
+from pfns_hpo.pfns_hpo.plot3D import Plotter3D
 
 def load_yaml(file_path):
     try:
@@ -51,3 +53,15 @@ def process_trajectory(pipeline_directory, val_loss, val_losses, test_losses, te
     min_valid_seen = min(val_loss, previous_results["info_dict"].get("min_valid_seen", val_loss))
     min_test_seen = min(test_loss, previous_results["info_dict"].get("min_test_seen", test_loss))
     return learning_curves, min_valid_seen, min_test_seen
+
+
+def create_3d_plot(searcher, seed, neps_root_directory, benchmark):
+    plotter = Plotter3D(
+            algorithm=searcher,
+            benchmark=benchmark,
+            experiment_group="results_examples",
+            seed=seed,
+        )
+
+    _df = pd.read_csv(f"{neps_root_directory}/summary_csv/config_data.csv", float_precision="round_trip")
+    plotter.plot3D(data=_df, run_path=Path.cwd())
