@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import torch
 import argparse
 import logging
 import neps
@@ -16,7 +17,7 @@ def main(args):
     # make directory if necessary
     if not os.path.exists(neps_root_directory):
         os.makedirs(neps_root_directory)
-    
+
     if not args.plot_only:
         neps.run(
             run_pipeline=run_pipeline,
@@ -34,8 +35,18 @@ def main(args):
                 'already_normalized': False,
             },
         )
+    
     if "ifbo" in args.searcher: # includes any ifbo variant
-        create_3d_plot(args.searcher, args.seed, neps_root_directory, "vae")
+        create_3d_plot(
+            args.searcher,
+            args.seed,
+            neps_root_directory,
+            "vae",
+            soft_lb=torch.tensor(0.0),
+            soft_ub=torch.tensor(550.539795),
+            lb=torch.tensor(0.0),
+            minimize=False,
+        )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="vae ifbo")
