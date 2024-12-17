@@ -23,7 +23,7 @@ def main(args):
     # make directory if necessary
     if not os.path.exists(neps_root_directory):
         os.makedirs(neps_root_directory)
-    
+
     if not args.plot_only:
         neps.run(
             run_pipeline=run_pipeline_partial,
@@ -35,15 +35,28 @@ def main(args):
             searcher_path=args.searcher_path,
             post_run_summary=True,
             surrogate_model_args={
-                "soft_ub": 10.412651796975453,  # np.log(len(corpus.dictionary)=33278)
-                "soft_lb": 0.0,
-                "lb": 0.0,
-                "already_normalized": False,
+                # "soft_ub": 10.412651796975453,  # np.log(len(corpus.dictionary)=33278)
+                # "soft_lb": 0.0,
+                # "lb": 0.0,
+                # "normalization_method": "pfn",
+                "normalization_method": "neps",
+                "max_value": 10.5, # empirical value from epoch 0 after a few runs
             }
         )
-    
+
     if "ifbo" in args.searcher: # includes any ifbo variant
-        create_3d_plot(args.searcher, args.seed, neps_root_directory, "word_lm", soft_lb=torch.tensor(0.0), soft_ub=torch.tensor(10.412651796975453), lb=torch.tensor(0.0), minimize=False)
+        create_3d_plot(
+            args.searcher,
+            args.seed,
+            neps_root_directory,
+            benchmark="word_lm",
+            normalization_method="neps",
+            max_value=10.5,
+            soft_lb=torch.tensor(0.0),
+            soft_ub=torch.tensor(10.412651796975453),
+            lb=torch.tensor(0.0),
+            minimize=False,
+        )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="word language model ifbo")

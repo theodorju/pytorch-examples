@@ -60,6 +60,8 @@ def create_3d_plot(
     seed,
     neps_root_directory,
     benchmark,
+    normalization_method,
+    max_value,
     soft_lb=0.0,
     soft_ub=1.0,
     minimize=False,
@@ -76,9 +78,20 @@ def create_3d_plot(
         )
 
     _df = pd.read_csv(f"{neps_root_directory}/summary_csv/config_data.csv", float_precision="round_trip")
-    normalize, _ = pfn_normalize(lb, ub, soft_lb, soft_ub, minimize)
+    if normalization_method == "pfn":
+        normalize, _ = pfn_normalize(lb, ub, soft_lb, soft_ub, minimize)
+    else:
+        normalize = neps_normalize(max_value, minimize)
     _df["result.loss"] = normalize(torch.tensor(_df["result.loss"].values)).numpy()
     plotter.plot3D(data=_df, run_path=Path.cwd())
+
+
+def neps_normalize(max_value, minimize=False):
+    return lambda train_y: (
+        1 - torch.clamp(train_y, 0, max_value) / max_value
+        if minimize
+        else torch.clamp(train_y, 0, max_value) / max_value
+    )
 
 
 def pfn_normalize(
