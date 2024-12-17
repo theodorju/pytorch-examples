@@ -30,15 +30,28 @@ def main(args):
             searcher_path=args.searcher_path,
             post_run_summary=True,
             surrogate_model_args={
-                'soft_ub': 2.31,
-                'soft_lb': 0.0,
-                'lb': 0.0,
-                'already_normalized': False,
+                # 'soft_ub': 2.31,
+                # 'soft_lb': 0.0,
+                # 'lb': 0.0,
+                # 'normalization_method': "pfn",
+                "normalization_method": "neps",
+                "max_value": 2.31,
             },
         )
 
     if "ifbo" in args.searcher: # includes any ifbo variant
-        create_3d_plot(args.searcher, args.seed, neps_root_directory, "mnist", soft_lb=torch.tensor(0.0), soft_ub=torch.tensor(2.31), lb=torch.tensor(0.0), minimize=False)
+        create_3d_plot(
+            args.searcher,
+            args.seed,
+            neps_root_directory,
+            benchmark="mnist",
+            normalization_method="neps",
+            max_value=2.31,
+            soft_lb=torch.tensor(0.0),
+            soft_ub=torch.tensor(2.31),
+            minimize=False,
+            lb=torch.tensor(0.0),
+        )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="mnist ifbo")
