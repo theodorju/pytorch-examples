@@ -43,7 +43,9 @@ def main(args):
             args.searcher,
             args.seed,
             neps_root_directory,
-            "vae",
+            benchmark="vae",
+            normalization_method="neps",
+            max_value=550.539795
             soft_lb=torch.tensor(0.0),
             soft_ub=torch.tensor(550.539795),
             lb=torch.tensor(0.0),
