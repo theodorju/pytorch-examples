@@ -29,10 +29,12 @@ def main(args):
             searcher_path=args.searcher_path,
             post_run_summary=True,
             surrogate_model_args={
-                'soft_ub': 550.539795, # empirical value after a few runs
-                'soft_lb': 0.0,
-                'lb': 0.0,
-                'already_normalized': False,
+                # 'soft_ub': 550.539795, # empirical value after a few runs
+                # 'soft_lb': 0.0,
+                # 'lb': 0.0,
+                # 'already_normalized': False,
+                "normalization_method": "neps",
+                "max_value": 550.539795,
             },
         )
     
