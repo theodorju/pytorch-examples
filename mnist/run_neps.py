@@ -35,7 +35,7 @@ def main(args):
                 # 'lb': 0.0,
                 # 'normalization_method': "pfn",
                 "normalization_method": "neps",
-                "max_value": 2.31,
+                "max_value": 2.5,  # empirical value from epoch 0 after a few runs
             },
         )
 
@@ -46,7 +46,7 @@ def main(args):
             neps_root_directory,
             benchmark="mnist",
             normalization_method="neps",
-            max_value=2.31,
+            max_value=2.5,
             soft_lb=torch.tensor(0.0),
             soft_ub=torch.tensor(2.31),
             minimize=False,
