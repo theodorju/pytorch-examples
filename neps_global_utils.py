@@ -188,10 +188,12 @@ def check_remaining_configs(searcher, benchmark, seed):
         df_results_existing = pd.DataFrame()
         completed_groups = set()
 
+    unique_configs['Config_group'] = unique_configs['Config_group'].astype(str)
+    completed_groups = set(map(str, completed_groups))
     remaining_configs = unique_configs[~unique_configs['Config_group'].isin(completed_groups)]
     print(f"Remaining configs shape: {remaining_configs.shape}")
 
-    _df = unique_configs[['Config_group', 'config.beta1', 'config.beta2', 'config.learning_rate', 'config.epsilon']]
+    _df = remaining_configs[['Config_group', 'config.beta1', 'config.beta2', 'config.learning_rate', 'config.epsilon']]
     return _df, results_file
 
 
