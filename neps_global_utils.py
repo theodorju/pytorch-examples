@@ -152,3 +152,58 @@ def pfn_normalize(
         ), lambda y: lin_soft_inv(
             torch.log(((cinv(y) - b) / a) / (1 - ((cinv(y) - b) / a)))
         )
+
+
+def check_remaining_configs(searcher, benchmark, seed):
+    configs_path = (
+        Path("results_examples")
+        / f"benchmark={benchmark}"
+        / f"algorithm={searcher}"
+        / f"seed={seed}"
+        / "neps_root_directory"
+        / "summary_csv"
+        / "config_data.csv"
+    )
+    results_file = Path.cwd() / f"{searcher}_{seed}_learning_curves_all_configs.csv"
+
+    # load configs
+    configs = pd.read_csv(configs_path)
+    configs['Config_group'] = configs['Config_id'].apply(lambda x: x.split("_")[0])
+    unique_configs = configs.groupby('Config_group').first().reset_index()
+    print(f"unique configs shape {unique_configs.shape}")
+
+    # Check for existing results to resume from
+    if results_file.exists():
+        print("Resuming from existing results file.")
+        df_results_existing = pd.read_csv(results_file)
+        group_counts = df_results_existing['Config_group'].value_counts()
+        completed_groups = set(group_counts[group_counts == 50].index)
+        print(f"Completed Config Groups: {completed_groups}")
+        incomplete_groups = set(group_counts[group_counts < 50].index)
+        if incomplete_groups:
+            print(f"Deleting logs for incomplete Config Groups: {incomplete_groups}")
+            df_results_existing = df_results_existing[~df_results_existing['Config_group'].isin(incomplete_groups)]
+        print(f"Remaining Config Groups after cleanup: {df_results_existing['Config_group'].unique()}")
+    else:
+        df_results_existing = pd.DataFrame()
+        completed_groups = set()
+
+    remaining_configs = unique_configs[~unique_configs['Config_group'].isin(completed_groups)]
+    print(f"Remaining configs shape: {remaining_configs.shape}")
+
+    _df = unique_configs[['Config_group', 'config.beta1', 'config.beta2', 'config.learning_rate', 'config.epsilon']]
+    return _df, results_file
+
+
+def save_pd_configs(config_group, ep, beta1, beta2, learning_rate, epsilon, val_loss, test_loss, results_file):
+    new_result = {
+        'Config_group': config_group,
+        'epoch': ep + 1,  # Track current epoch
+        'config.beta1': beta1,
+        'config.beta2': beta2,
+        'config.learning_rate': learning_rate,
+        'config.epsilon': epsilon,
+        'val_loss': val_loss,
+        'test_loss': test_loss
+    }
+    pd.DataFrame([new_result]).to_csv(results_file, mode='a', header=not results_file.exists(), index=False)
