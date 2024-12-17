@@ -61,7 +61,7 @@ def run_pipeline(
     src_vocab_size = len(src_vocab)
     tgt_vocab_size = len(tgt_vocab)
 
-    model = model = Translator(
+    model = Translator(
         num_encoder_layers=opts.enc_layers,
         num_decoder_layers=opts.dec_layers,
         embed_size=opts.embed_size,
