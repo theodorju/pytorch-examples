@@ -32,7 +32,7 @@ def get_pipeline_space(searcher, B=50, n_params=4) -> dict:  # maybe limiting fo
             log=True,
         )
     )
-    uses_fidelity = ("ifbo", "hyperband", "asha", "ifbo_taskset_4p", "ifbo_taskset_4p_extended")
+    uses_fidelity = ("ifbo", "hyperband", "asha", "ifbo_taskset_4p", "ifbo_taskset_4p_extended", "ifbo_taskset_8p", "ifbo_taskset_8p_extended")
     if searcher in uses_fidelity:
         pipeline_space["epoch"] = neps.IntegerParameter(
             lower=1,
