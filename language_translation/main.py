@@ -106,7 +106,7 @@ def inference(opts):
         print(translation)
 
 # Train the model for 1 epoch
-def train(model, train_dl, loss_fn, optim, special_symbols, opts):
+def train(model, train_dl, loss_fn, optim, special_symbols, opts, n_params=4, l1=None, l2=None):
 
     # Object for accumulating losses
     losses = 0
@@ -135,6 +135,14 @@ def train(model, train_dl, loss_fn, optim, special_symbols, opts):
 
         # Compute loss and gradient over that loss
         loss = loss_fn(logits.reshape(-1, logits.shape[-1]), tgt_out.reshape(-1))
+        if n_params == 8:
+            l1_loss = 0
+            l2_loss = 0
+            # apply l1 and l2 regularization
+            for p in model.parameters():
+                l1_loss += torch.sum(torch.abs(p))
+                l2_loss += torch.sum(p ** 2)
+            loss += l1 * l1_loss + l2 * l2_loss
         loss.backward()
 
         # Step weights

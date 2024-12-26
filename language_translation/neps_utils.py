@@ -10,40 +10,6 @@ from neps_global_utils import process_trajectory
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def get_pipeline_space(searcher) -> dict:  # maybe limiting for ifbo
-    """define search space for neps"""
-    pipeline_space = dict(
-        learning_rate=neps.FloatParameter(
-            lower=1e-9,
-            upper=10,
-            log=True,
-        ),
-        beta1=neps.FloatParameter(
-            lower=1e-4,
-            upper=1,
-            log=True,
-        ),
-        beta2=neps.FloatParameter(
-            lower=1e-3,
-            upper=1,
-            log=True,
-        ),
-        epsilon=neps.FloatParameter(
-            lower=1e-12,
-            upper=1000,
-            log=True,
-        )
-    )
-    uses_fidelity = ("ifbo", "hyperband", "asha", "ifbo_taskset_4p", "ifbo_taskset_4p_extended")
-    if searcher in uses_fidelity:
-        pipeline_space["epoch"] = neps.IntegerParameter(
-            lower=1,
-            upper=50,
-            is_fidelity=True,
-        )
-    return pipeline_space
-
-
 def run_pipeline(
         pipeline_directory,
         previous_pipeline_directory,
@@ -53,6 +19,11 @@ def run_pipeline(
         epsilon,
         epoch=50,  # 30 default if not handled by the searcher
         opts=None,
+        l1=None,
+        l2=None,
+        linear_decay=None,
+        exponential_decay=None,
+        n_params=4,
 ):
     start = time.time()
     epochs = int(epoch)
@@ -89,6 +60,14 @@ def run_pipeline(
 
     for idx, ep in enumerate(range(start_epoch, epochs)):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
+        if n_params == 8:
+            linear_factor = np.max(1 - linear_decay * ep, 0)
+            exponential_factor = np.exp(-exponential_decay * ep)
+            updated_lr = learning_rate * linear_factor * exponential_factor
+            # update lr manually
+            assert len(optimizer.param_groups) == 1
+            optimizer.param_groups[0]["lr"] = updated_lr
+        
         train_loss = train(model, train_dl, loss_fn, optimizer, special_symbols, opts)
         val_loss = validate(model, valid_dl, loss_fn, special_symbols)
         val_losses.append(val_loss)

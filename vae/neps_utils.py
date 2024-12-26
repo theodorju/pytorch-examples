@@ -17,40 +17,6 @@ from neps_global_utils import set_seed, process_trajectory
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def get_pipeline_space(searcher) -> dict:  # maybe limiting for ifbo
-    """define search space for neps"""
-    pipeline_space = dict(
-        learning_rate=neps.FloatParameter(
-            lower=1e-9,
-            upper=10,
-            log=True,
-        ),
-        beta1=neps.FloatParameter(
-            lower=1e-4,
-            upper=1,
-            log=True,
-        ),
-        beta2=neps.FloatParameter(
-            lower=1e-3,
-            upper=1,
-            log=True,
-        ),
-        epsilon=neps.FloatParameter(
-            lower=1e-12,
-            upper=1000,
-            log=True,
-        )
-    )
-    uses_fidelity = ("ifbo", "hyperband", "asha", "ifbo_taskset_4p", "ifbo_taskset_4p_extended")
-    if searcher in uses_fidelity:
-        pipeline_space["epoch"] = neps.IntegerParameter(
-            lower=1,
-            upper=50,
-            is_fidelity=True,
-        )
-    return pipeline_space
-
-
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logvar):
     # nan --> diverged
@@ -144,7 +110,7 @@ def adaptive_gradient_clipping(model, clip_factor=2, percentile=95, max_history=
                     param.grad.mul_(threshold / (current_grad_norm + 1e-6))
 
 
-def train_epoch(model, optimizer, criterion, train_loader, validation_loader):
+def train_epoch(model, optimizer, criterion, train_loader, validation_loader, n_params=4, l1=None, l2=None) -> float:
     model.train()
     # train for all batches of data in an epoch
     for batch_idx, (data, _) in enumerate(train_loader):
@@ -155,6 +121,14 @@ def train_epoch(model, optimizer, criterion, train_loader, validation_loader):
         loss = criterion(recon_batch, data, mu, logvar)
         if loss == float('inf'):
             return float('inf')
+        if n_params == 8:
+            l1_loss = 0
+            l2_loss = 0
+            # apply l1 and l2 regularization
+            for p in model.parameters():
+                l1_loss += torch.sum(torch.abs(p))
+                l2_loss += torch.sum(p ** 2)
+            loss += l1 * l1_loss + l2 * l2_loss
         loss.backward()
         adaptive_gradient_clipping(model, clip_factor=2)
         optimizer.step()
@@ -169,7 +143,12 @@ def run_pipeline(
         beta1,
         beta2,
         epsilon,
-        epoch=50 # 50 default if not handled by the searcher
+        l1=None,
+        l2=None,
+        linear_decay=None,
+        exponential_decay=None,
+        epoch=50, # 50 default if not handled by the searcher
+        n_params=4,
 ):
     start = time.time()
     # for mf algorithms
@@ -193,7 +172,15 @@ def run_pipeline(
 
     for ep in range(start_epoch, epochs):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
-        val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader)
+        if n_params == 8:
+            linear_factor = np.max(1 - linear_decay * ep, 0)
+            exponential_factor = np.exp(-exponential_decay * ep)
+            updated_lr = learning_rate * linear_factor * exponential_factor
+            # update lr manually
+            assert len(optimizer.param_groups) == 1
+            optimizer.param_groups[0]["lr"] = updated_lr
+        
+        val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader, n_params, l1, l2)
         val_losses.append(val_loss)
     
         if val_loss == float('inf'):

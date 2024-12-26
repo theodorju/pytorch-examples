@@ -8,33 +8,33 @@ import logging
 import neps
 import torch
 import data
-from neps_utils import run_pipeline, get_pipeline_space
-from neps_global_utils import set_seed, create_3d_plot
+from neps_utils import run_pipeline
+from neps_global_utils import set_seed, create_3d_plot, get_pipeline_space, get_neps_root_directory
 from functools import partial
 
 def main(args):
     set_seed(args.seed)
-    pipeline_space = get_pipeline_space(args.searcher)
+    pipeline_space = get_pipeline_space(args.searcher, n_params=args.n_params)
     logging.basicConfig(level=logging.INFO)
     corpus = data.Corpus(args.data)
 
-    run_pipeline_partial = partial(run_pipeline, opts=args, corpus=corpus, eval_batch_size=args.eval_batch_size)
-    neps_root_directory = f"results_examples/benchmark=word_lm/algorithm={args.searcher}/seed={args.seed}/neps_root_directory"
-    # make directory if necessary
-    if not os.path.exists(neps_root_directory):
-        os.makedirs(neps_root_directory)
+    run_pipeline_partial = partial(run_pipeline, opts=args, corpus=corpus, eval_batch_size=args.eval_batch_size, n_params=args.n_params)
+
+    neps_root_directory = get_neps_root_directory(args.n_params, args.searcher, args.seed)
 
     if not args.plot_only:
-        neps.run(
-            run_pipeline=run_pipeline_partial,
-            pipeline_space=pipeline_space,
-            root_directory=neps_root_directory,
-            overwrite_working_directory=args.overwrite_working_directory,
-            max_cost_total=args.max_cost_total,
-            searcher=args.searcher,
-            searcher_path=args.searcher_path,
-            post_run_summary=True,
-            surrogate_model_args={
+        neps_kwargs = {
+            "run_pipeline": run_pipeline_partial,
+            "pipeline_space": pipeline_space,
+            "root_directory": neps_root_directory,
+            "overwrite_working_directory": args.overwrite_working_directory,
+            "max_cost_total": args.max_cost_total,
+            "searcher": args.searcher,
+            "searcher_path": args.searcher_path,
+            "post_run_summary": True,
+        }
+        if "ifbo" in args.searcher:
+            neps_kwargs["surrogate_model_args"] = {
                 # "soft_ub": 10.412651796975453,  # np.log(len(corpus.dictionary)=33278)
                 # "soft_lb": 0.0,
                 # "lb": 0.0,
@@ -42,7 +42,7 @@ def main(args):
                 "normalization_method": "neps",
                 "max_value": 10.5, # empirical value from epoch 0 after a few runs
             }
-        )
+        neps.run(**neps_kwargs)
 
     if "ifbo" in args.searcher: # includes any ifbo variant
         create_3d_plot(
@@ -137,5 +137,6 @@ if __name__ == "__main__":
         "--dry-run", action="store_true", help="verify the code and the model"
     )
     parser.add_argument("--plot_only", action="store_true")
+    parser.add_argument("--n_params", type=int, default=4)
     args = parser.parse_args()
     main(args)

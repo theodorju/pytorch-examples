@@ -16,41 +16,6 @@ from neps_global_utils import set_seed, process_trajectory
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-def get_pipeline_space(searcher) -> dict:  # maybe limiting for ifbo
-    """define search space for neps"""
-    pipeline_space = dict(
-        learning_rate=neps.FloatParameter(
-            lower=1e-9,
-            upper=10,
-            log=True,
-        ),
-        beta1=neps.FloatParameter(
-            lower=1e-4,
-            upper=1,
-            log=True,
-        ),
-        beta2=neps.FloatParameter(
-            lower=1e-3,
-            upper=1,
-            log=True,
-        ),
-        epsilon=neps.FloatParameter(
-            lower=1e-12,
-            upper=1000,
-            log=True,
-        )
-    )
-    uses_fidelity = ("ifbo", "hyperband", "asha", "ifbo_taskset_4p", "ifbo_taskset_4p_extended")
-    if searcher in uses_fidelity:
-        pipeline_space["epoch"] = neps.IntegerParameter(
-            lower=1,
-            upper=50,
-            is_fidelity=True,
-        )
-    return pipeline_space
-
-
 def load_mnist(batch_size, valid_size, val_test_batch_size=1024):
     transform = transforms.Compose([
         transforms.ToTensor(),
@@ -98,18 +63,27 @@ class Net(nn.Module):
         output = F.log_softmax(output, dim=1)
         return output
 
-def train_epoch(model, optimizer, criterion, train_loader, validation_loader):
+def train_epoch(model, optimizer, criterion, train_loader, validation_loader, n_params, l1, l2):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
+        if n_params == 8:
+            l1_loss = 0
+            l2_loss = 0
+            # apply l1 and l2 regularization
+            for p in model.parameters():
+                l1_loss += torch.sum(torch.abs(p))
+                l2_loss += torch.sum(p ** 2)
+            loss += l1 * l1_loss + l2 * l2_loss
         loss.backward()
         optimizer.step()
     val_acc, val_err, val_loss = evaluate_accuracy(model, validation_loader, criterion)
 
     return val_acc, val_err, val_loss
+
 
 def evaluate_accuracy(model, data_loader, criterion):
     set_seed()
@@ -137,7 +111,12 @@ def run_pipeline(
         beta2,
         epsilon,
         epoch=50, # 14 default if not handled by the searcher
-):
+        l1=None,
+        l2=None,
+        linear_decay=None,
+        exponential_decay=None,
+        n_params=4,
+    ):
     start = time.time()
     # for mf algorithms
     epochs = int(epoch)
@@ -167,7 +146,14 @@ def run_pipeline(
     # train the model
     for ep in range(start_epoch, epochs):
         print("  Epoch {} / {} ...".format(ep + 1, epochs).ljust(2))
-        val_acc, val_error, val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader)
+        if n_params == 8:
+            linear_factor = np.max(1 - linear_decay * ep, 0)
+            exponential_factor = np.exp(-exponential_decay * ep)
+            updated_lr = learning_rate * linear_factor * exponential_factor
+            assert len(optimizer.param_groups) == 1
+            optimizer.param_groups[0]["lr"] = updated_lr
+        
+        val_acc, val_error, val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader, n_params, l1, l2)
         val_losses.append(val_loss)
         test_acc, test_error, test_loss = evaluate_accuracy(model, test_loader, criterion)
         test_losses.append(test_loss)

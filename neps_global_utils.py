@@ -1,9 +1,74 @@
 import yaml
+import os
 import torch
 import pandas as pd
+import neps
 from pathlib import Path
 from pfns_hpo.plot3D import Plotter3D
 
+
+def get_pipeline_space(searcher, B=50, n_params=4) -> dict:  # maybe limiting for ifbo
+    """define search space for neps"""
+    assert n_params in [4, 8], "n_params must be 4 or 8"
+    pipeline_space = dict(
+        learning_rate=neps.FloatParameter(
+            lower=1e-9,
+            upper=10,
+            log=True,
+        ),
+        beta1=neps.FloatParameter(
+            lower=1e-4,
+            upper=1,
+            log=True,
+        ),
+        beta2=neps.FloatParameter(
+            lower=1e-3,
+            upper=1,
+            log=True,
+        ),
+        epsilon=neps.FloatParameter(
+            lower=1e-12,
+            upper=1000,
+            log=True,
+        )
+    )
+    uses_fidelity = ("ifbo", "hyperband", "asha", "ifbo_taskset_4p", "ifbo_taskset_4p_extended")
+    if searcher in uses_fidelity:
+        pipeline_space["epoch"] = neps.IntegerParameter(
+            lower=1,
+            upper=B,
+            is_fidelity=True,
+        )
+    if n_params == 8:
+        pipeline_space["l1"]=neps.FloatParameter(
+            lower=1e-9,
+            upper=10,
+            log=True,
+        )
+        pipeline_space["l2"]=neps.FloatParameter(
+            lower=1e-9,
+            upper=10,
+            log=True,
+        )
+        pipeline_space["linear_decay"]=neps.FloatParameter(
+            lower=1e-8,
+            upper=0.0001,
+            log=True,
+        )
+        pipeline_space["exponential_decay"]=neps.FloatParameter(
+            lower=1e-6,
+            upper=1e-3,
+            log=True,
+        )
+    return pipeline_space
+
+def get_neps_root_directory(n_params, searcher, seed):
+    d = f"results_examples_{n_params}p/benchmark=mnist/algorithm={searcher}/seed={seed}/neps_root_directory"
+    # make directory if necessary
+    if not os.path.exists(d):
+        os.makedirs(d)
+    return d
+    
 def load_yaml(file_path):
     try:
         with open(file_path, 'r') as f:
