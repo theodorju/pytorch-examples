@@ -62,8 +62,8 @@ def get_pipeline_space(searcher, B=50, n_params=4) -> dict:  # maybe limiting fo
         )
     return pipeline_space
 
-def get_neps_root_directory(n_params, searcher, seed):
-    d = f"results_examples_{n_params}p/benchmark=mnist/algorithm={searcher}/seed={seed}/neps_root_directory"
+def get_neps_root_directory(n_params, benchmark, searcher, seed):
+    d = f"results_examples_{n_params}p/benchmark={benchmark}/algorithm={searcher}/seed={seed}/neps_root_directory"
     # make directory if necessary
     if not os.path.exists(d):
         os.makedirs(d)

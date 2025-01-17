@@ -21,7 +21,7 @@ def main(args):
 
     run_pipeline_partial = partial(run_pipeline, opts=args, n_params=args.n_params)
 
-    neps_root_directory = get_neps_root_directory(args.n_params, args.searcher, args.seed)
+    neps_root_directory = get_neps_root_directory(n_params=args.n_params, benchmark="language_translation", searcher=args.searcher, seed=args.seed)
     
     if not args.plot_only:
         neps_kwargs = {
