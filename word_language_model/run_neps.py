@@ -20,7 +20,7 @@ def main(args):
 
     run_pipeline_partial = partial(run_pipeline, opts=args, corpus=corpus, eval_batch_size=args.eval_batch_size, n_params=args.n_params)
 
-    neps_root_directory = get_neps_root_directory(args.n_params, args.searcher, args.seed)
+    neps_root_directory = get_neps_root_directory(args.n_params, "word_lm" args.searcher, args.seed)
 
     if not args.plot_only:
         neps_kwargs = {

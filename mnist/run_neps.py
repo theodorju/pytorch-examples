@@ -17,7 +17,7 @@ def main(args):
     pipeline_space = get_pipeline_space(args.searcher, n_params=args.n_params)
     logging.basicConfig(level=logging.INFO)
 
-    neps_root_directory = get_neps_root_directory(args.n_params, args.searcher, args.seed)
+    neps_root_directory = get_neps_root_directory(args.n_params, "mnist", args.searcher, args.seed)
 
     run_pipeline_partial = partial(run_pipeline, n_params=args.n_params)
     
