@@ -19,6 +19,8 @@ def main(args):
 
     run_pipeline_partial = partial(run_pipeline, n_params=args.n_params)
 
+    ifbo_alternative = "ifbo" in args.searcher or "mixup" in args.searcher or "cdf" in args.searcher
+
     if not args.plot_only:
         neps_kwargs = {
             "run_pipeline": run_pipeline_partial,
@@ -30,7 +32,7 @@ def main(args):
             "searcher_path": args.searcher_path,
             "post_run_summary": True,
         }
-        if "ifbo" in args.searcher:
+        if ifbo_alternative:
             neps_kwargs["surrogate_model_args"] = {
                 # 'soft_ub': 550.539795, # empirical value after a few runs
                 # 'soft_lb': 0.0,
@@ -41,7 +43,7 @@ def main(args):
             }
         neps.run(**neps_kwargs)
         
-    if "ifbo" in args.searcher: # includes any ifbo variant
+    if ifbo_alternative: # includes any ifbo variant
         create_3d_plot(
             args.searcher,
             args.seed,
@@ -64,5 +66,6 @@ if __name__ == "__main__":
     parser.add_argument("--searcher_path", type=str, default="/home/theo/development/automl/ta_forks/tj-ifbo_private/src/pfns_hpo/pfns_hpo/configs/algorithm")
     parser.add_argument("--plot_only", action="store_true")
     parser.add_argument("--n_params", type=int, default=4)
+    parser.add_argument("--")
     args = parser.parse_args()
     main(args)
