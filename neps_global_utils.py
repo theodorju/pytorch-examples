@@ -9,29 +9,38 @@ from pfns_hpo.plot3D import Plotter3D
 
 def get_pipeline_space(searcher, B=50, n_params=4) -> dict:  # maybe limiting for ifbo
     """define search space for neps"""
-    assert n_params in [4, 8], "n_params must be 4 or 8"
-    pipeline_space = dict(
-        learning_rate=neps.FloatParameter(
-            lower=1e-9,
-            upper=10,
-            log=True,
-        ),
-        beta1=neps.FloatParameter(
-            lower=1e-4,
-            upper=1,
-            log=True,
-        ),
-        beta2=neps.FloatParameter(
-            lower=1e-3,
-            upper=1,
-            log=True,
-        ),
-        epsilon=neps.FloatParameter(
-            lower=1e-12,
-            upper=1000,
-            log=True,
+    if n_params in [4, 8]:
+        pipeline_space = dict(
+            learning_rate=neps.FloatParameter(
+                lower=1e-9,
+                upper=10,
+                log=True,
+            ),
+            beta1=neps.FloatParameter(
+                lower=1e-4,
+                upper=1,
+                log=True,
+            ),
+            beta2=neps.FloatParameter(
+                lower=1e-3,
+                upper=1,
+                log=True,
+            ),
+            epsilon=neps.FloatParameter(
+                lower=1e-12,
+                upper=1000,
+                log=True,
+            )
         )
-    )
+    
+    else:
+        pipeline_space = dict(
+            learning_rate=neps.FloatParameter(
+                lower=1e-9,
+                upper=10,
+                log=True,
+            )
+        )
     
     # all others use fidelity
     if searcher != "random_search":
