@@ -104,9 +104,9 @@ def run_pipeline(
         pipeline_directory,
         previous_pipeline_directory,
         learning_rate,
-        beta1,
-        beta2,
-        epsilon,
+        beta1=None,
+        beta2=None,
+        epsilon=None,
         l1=None,
         l2=None,
         linear_decay=None,
@@ -120,9 +120,18 @@ def run_pipeline(
 
     criterion = torch.nn.NLLLoss()
     model = Net().to(device)
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon
-    )
+
+    # if n_params == 1 -> beta1, beta2, and epsilon set to default by torch
+    if n_params == 1:
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=learning_rate
+        )
+    
+    # for 4 or 8 params, beta1, beta2 and epsilon are optimized
+    else:
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon
+        )
 
     train_loader, validation_loader, test_loader = load_mnist(batch_size=64, valid_size=0.2)
 

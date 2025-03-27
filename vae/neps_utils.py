@@ -140,9 +140,9 @@ def run_pipeline(
         pipeline_directory,
         previous_pipeline_directory,
         learning_rate,
-        beta1,
-        beta2,
-        epsilon,
+        beta1=None,
+        beta2=None,
+        epsilon=None,
         l1=None,
         l2=None,
         linear_decay=None,
@@ -156,7 +156,11 @@ def run_pipeline(
 
     criterion = loss_function
     model = VAE().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon)
+    if n_params == 1:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon)
 
     train_loader, validation_loader, test_loder = load_mnist(batch_size=128, valid_size=0.2)
 

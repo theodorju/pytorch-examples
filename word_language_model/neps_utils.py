@@ -1,4 +1,4 @@
-import sys
+=Noneimport sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -108,9 +108,9 @@ def run_pipeline(
     pipeline_directory,
     previous_pipeline_directory,
     learning_rate,
-    beta1,
-    beta2,
-    epsilon,
+    beta1=None,
+    beta2=None,
+    epsilon=None,
     epoch=50,  # 50 default if not handled by the searcher
     l1=None,
     l2=None,
@@ -142,9 +142,13 @@ def run_pipeline(
             opts.tied,
         ).to(device)
 
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon
-    )
+    if n_params == 1:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    
+    else:
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon
+        )
 
     previous_state = load_checkpoint(
         directory=previous_pipeline_directory, model=model, optimizer=optimizer
