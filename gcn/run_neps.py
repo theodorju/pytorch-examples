@@ -7,8 +7,8 @@ import argparse
 import logging
 import neps
 from functools import partial
-from neps_utils import run_pipeline, get_pipeline_space
-from neps_global_utils import set_seed
+from neps_utils import run_pipeline
+from neps_global_utils import set_seed, create_3d_plot, get_pipeline_space, get_neps_root_directory
 
 def main(args):
     cora_url = 'https://linqs-data.soe.ucsc.edu/public/lbc/cora.tgz'
@@ -22,27 +22,37 @@ def main(args):
                 tgz_object.extractall()
 
     set_seed(args.seed)
-    pipeline_space = get_pipeline_space(args.searcher)
+    pipeline_space = get_pipeline_space(args.searcher, n_params=args.n_params)
     logging.basicConfig(level=logging.INFO)
+
+    neps_root_directory = get_neps_root_directory(args.n_params, "gcn", args.searcher, args.seed)
     
     run_pipeline_partial = partial(run_pipeline, hidden_dim=args.hidden_dim, dropout_p=args.dropout_p, include_bias=args.include_bias)
 
-    neps_root_directory = f"results_examples/benchmark=gcn/algorithm={args.searcher}/seed={args.seed}/neps_root_directory"
-
-    # make directory if necessary
-    if not os.path.exists(neps_root_directory):
-        os.makedirs(neps_root_directory)
+    ifbo_alternative = "ifbo" in args.searcher or "mixup" in args.searcher or "cdf" in args.searcher
     
-    neps.run(
-        run_pipeline=run_pipeline_partial,
-        pipeline_space=pipeline_space,
-        root_directory=neps_root_directory,
-        overwrite_working_directory=args.overwrite_working_directory,
-        max_cost_total=args.max_cost_total,
-        searcher=args.searcher,
-        searcher_path=args.searcher_path,
-        post_run_summary=True,
-    )
+    neps_kwargs = {
+        "run_pipeline": run_pipeline_partial,
+        "pipeline_space": pipeline_space,
+        "root_directory": neps_root_directory,
+        "overwrite_working_directory": args.overwrite_working_directory,
+        "max_cost_total": args.max_cost_total,
+        "searcher": args.searcher,
+        "searcher_path": args.searcher_path,
+        "post_run_summary": True,
+        }
+    
+    if ifbo_alternative:
+        neps_kwargs["surrogate_model_args"] = {
+            # 'soft_ub': 2.31,
+            # 'soft_lb': 0.0,
+            # 'lb': 0.0,
+            # 'normalization_method': "pfn",
+            "normalization_method": "neps",
+            "max_value": 2.,  # empirical value from epoch 0 after a few runs
+        }
+    
+    neps.run(**neps_kwargs)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="gcn ifbo")
@@ -54,5 +64,6 @@ if __name__ == "__main__":
     parser.add_argument("--hidden_dim", type=int, default=16)
     parser.add_argument("--dropout_p", type=float, default=0.5)
     parser.add_argument("--include_bias", action="store_true", default=False)
+    parser.add_argument("--n_params", type=int, default=4)
     args = parser.parse_args()
     main(args)
