@@ -19,10 +19,12 @@ def main(args):
     pipeline_space = get_pipeline_space(args.searcher, n_params=args.n_params)
     logging.basicConfig(level=logging.INFO)
 
+    neps_root_directory = get_neps_root_directory(n_params=args.n_params, benchmark="language_translation", searcher=args.searcher, seed=args.seed)
+
     run_pipeline_partial = partial(run_pipeline, opts=args, n_params=args.n_params)
 
-    neps_root_directory = get_neps_root_directory(n_params=args.n_params, benchmark="language_translation", searcher=args.searcher, seed=args.seed)
-    
+    ifbo_alternative = "ifbo" in args.searcher or "mixup" in args.searcher or "cdf" in args.searcher
+
     if not args.plot_only:
         neps_kwargs = {
             "run_pipeline": run_pipeline_partial,
@@ -35,7 +37,7 @@ def main(args):
             "post_run_summary": True,
         }
 
-        if "ifbo" in args.searcher:
+        if ifbo_alternative:
             neps_kwargs["surrogate_model_args"] = {
                 # 'soft_ub': 9.827901565579532, # np.log(tgt_vocab_size=18544)
                 # 'soft_lb': 0.0,
@@ -46,7 +48,7 @@ def main(args):
             }
         neps.run(**neps_kwargs)
 
-    if "ifbo" in args.searcher: # includes any ifbo variant
+    if ifbo_alternative: # includes any ifbo variant
         create_3d_plot(
             args.searcher,
             args.seed,

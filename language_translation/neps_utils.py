@@ -14,9 +14,9 @@ def run_pipeline(
         pipeline_directory,
         previous_pipeline_directory,
         learning_rate,
-        beta1,
-        beta2,
-        epsilon,
+        beta1=None,
+        beta2=None,
+        epsilon=None,
         epoch=50,  # 30 default if not handled by the searcher
         opts=None,
         l1=None,
@@ -42,7 +42,12 @@ def run_pipeline(
         dim_feedforward=opts.dim_feedforward,
         dropout=opts.dropout
     ).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon)
+
+    if n_params == 1:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=(beta1, beta2), eps=epsilon)
+    
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=special_symbols["<pad>"])
 
     previous_state = load_checkpoint(
@@ -68,7 +73,7 @@ def run_pipeline(
             assert len(optimizer.param_groups) == 1
             optimizer.param_groups[0]["lr"] = updated_lr
         
-        train_loss = train(model, train_dl, loss_fn, optimizer, special_symbols, opts)
+        train_loss = train(model, train_dl, loss_fn, optimizer, special_symbols, opts, n_params, l1, l2)
         val_loss = validate(model, valid_dl, loss_fn, special_symbols)
         val_losses.append(val_loss)
 
