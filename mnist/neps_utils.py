@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import math
 import time
 import numpy as np
 import torch
@@ -161,8 +162,14 @@ def run_pipeline(
             optimizer.param_groups[0]["lr"] = updated_lr
 
         val_acc, val_error, val_loss = train_epoch(model, optimizer, criterion, train_loader, validation_loader, n_params, l1, l2)
+        if math.isnan(val_loss):
+            val_loss = float('inf')
         val_losses.append(val_loss)
-        test_acc, test_error, test_loss = evaluate_accuracy(model, test_loader, criterion)
+        
+        if math.isnan(val_loss):
+            test_loss = float('inf')
+        else:
+            test_acc, test_error, test_loss = evaluate_accuracy(model, test_loader, criterion)
         test_losses.append(test_loss)
     
     save_checkpoint(
