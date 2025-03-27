@@ -66,6 +66,5 @@ if __name__ == "__main__":
     parser.add_argument("--searcher_path", type=str, default="/home/theo/development/automl/ta_forks/tj-ifbo_private/src/pfns_hpo/pfns_hpo/configs/algorithm")
     parser.add_argument("--plot_only", action="store_true")
     parser.add_argument("--n_params", type=int, default=4)
-    parser.add_argument("--")
     args = parser.parse_args()
     main(args)

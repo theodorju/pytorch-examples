@@ -42,7 +42,7 @@ def main(args):
                 # "lb": 0.0,
                 # "normalization_method": "pfn",
                 "normalization_method": "neps",
-                "max_value": 10.5, # empirical value from epoch 0 after a few runs
+                "max_value": 25, # empirical value from epoch 0 after a few runs
             }
         neps.run(**neps_kwargs)
 
@@ -53,7 +53,7 @@ def main(args):
             neps_root_directory,
             benchmark="word_lm",
             normalization_method="neps",
-            max_value=10.5,
+            max_value=25,
             soft_lb=torch.tensor(0.0),
             soft_ub=torch.tensor(10.412651796975453),
             lb=torch.tensor(0.0),
