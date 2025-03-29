@@ -113,7 +113,7 @@ def train(model, train_dl, loss_fn, optim, special_symbols, opts, n_params=4, l1
 
     # Put model into inference mode
     model.train()
-    for src, tgt in tqdm(train_dl, ascii=True):
+    for src, tgt in train_dl:
 
         src = src.to(DEVICE)
         tgt = tgt.to(DEVICE)
@@ -166,7 +166,7 @@ def validate(model, valid_dl, loss_fn, special_symbols):
     # Turn off gradients a moment
     model.eval()
 
-    for src, tgt in tqdm(valid_dl):
+    for src, tgt in valid_dl:
 
         src = src.to(DEVICE)
         tgt = tgt.to(DEVICE)

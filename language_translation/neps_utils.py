@@ -3,6 +3,7 @@ import os
 import numpy as np
 import torch
 import neps
+import math
 from main import get_data, Translator, train, validate
 from neps.utils.common import load_checkpoint, save_checkpoint
 from neps_global_utils import process_trajectory
@@ -75,6 +76,8 @@ def run_pipeline(
         
         train_loss = train(model, train_dl, loss_fn, optimizer, special_symbols, opts, n_params, l1, l2)
         val_loss = validate(model, valid_dl, loss_fn, special_symbols)
+        if math.isnan(val_loss):
+            val_loss = float('inf')
         val_losses.append(val_loss)
 
 
