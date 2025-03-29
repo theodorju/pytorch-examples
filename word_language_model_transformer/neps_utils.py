@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import time
 import torch
+import math
 import numpy as np
 import neps
 from model import TransformerModel, RNNModel
@@ -186,10 +187,16 @@ def run_pipeline(
             n_params,
             l1, l2,
         )
+        if math.isnan(val_loss):
+            val_loss = float('inf')
         val_losses.append(val_loss)
-        test_loss = evaluate(
-            model, criterion, test_data, ntokens, eval_batch_size, opts.bptt
-        )
+
+        if math.isnan(val_loss):
+            test_loss = float('inf')
+        else:
+            test_loss = evaluate(
+                model, criterion, test_data, ntokens, eval_batch_size, opts.bptt
+            )
         test_losses.append(test_loss)
 
     save_checkpoint(
