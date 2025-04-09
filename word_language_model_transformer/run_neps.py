@@ -44,6 +44,10 @@ def main(args):
                 "normalization_method": "neps",
                 "max_value": 25, # empirical value from epoch 0 after a few runs
             }
+        elif "dpl" in args.searcher or "dyhpo" in args.searcher:
+            neps_kwargs["surrogate_model_args"] = {
+                "root_directory": neps_root_directory
+            }
         neps.run(**neps_kwargs)
 
     if ifbo_alternative: # includes any ifbo variant
