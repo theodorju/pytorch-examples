@@ -8,8 +8,8 @@ import argparse
 import logging
 import neps
 from functools import partial
-from neps_utils import run_pipeline, get_pipeline_space
-from neps_global_utils import set_seed
+from neps_utils import run_pipeline
+from neps_global_utils import set_seed, get_pipeline_space, get_neps_root_directory
 
 def main(args):
 
@@ -26,27 +26,37 @@ def main(args):
                 tgz_object.extractall()
     
     set_seed(args.seed)
-    pipeline_space = get_pipeline_space(args.searcher)
+    pipeline_space = get_pipeline_space(args.searcher, n_params=args.n_params)
     logging.basicConfig(level=logging.INFO)
+
+    neps_root_directory = get_neps_root_directory(n_params=args.n_params, benchmark="gat", searcher=args.searcher, seed=args.seed)
     
-    run_pipeline_partial = partial(run_pipeline, n_hidden=args.n_hidden, dropout=args.dropout, leaky_relu_slope=args.leaky_relu_slope, concat_heads=args.concat_heads, n_heads=args.n_heads)
+    run_pipeline_partial = partial(run_pipeline, n_hidden=args.n_hidden, dropout=args.dropout, leaky_relu_slope=args.leaky_relu_slope, concat_heads=args.concat_heads, n_heads=args.n_heads, n_params=args.n_params)
 
-    neps_root_directory = f"results_examples/benchmark=gat/algorithm={args.searcher}/seed={args.seed}/neps_root_directory"
+    ifbo_alternative = "ifbo" in args.searcher or "mixup" in args.searcher or "cdf" in args.searcher
 
-    # make directory if necessary
-    if not os.path.exists(neps_root_directory):
-        os.makedirs(neps_root_directory)
+    if not args.plot_only:
+        neps_kwargs = {
+            "run_pipeline": run_pipeline_partial,
+            "pipeline_space": pipeline_space,
+            "root_directory": neps_root_directory,
+            "overwrite_working_directory": args.overwrite_working_directory,
+            "max_cost_total": args.max_cost_total,
+            "searcher": args.searcher,
+            "searcher_path": args.searcher_path,
+            "post_run_summary": True,
+        }
 
-    neps.run(
-        run_pipeline=run_pipeline_partial,
-        pipeline_space=pipeline_space,
-        root_directory=neps_root_directory,
-        overwrite_working_directory=args.overwrite_working_directory,
-        max_cost_total=args.max_cost_total,
-        searcher=args.searcher,
-        searcher_path=args.searcher_path,
-        post_run_summary=True,
-    )
+        if ifbo_alternative:
+            neps_kwargs["surrogate_model_args"] = {
+                "normalization_method": "neps",
+                "max_value": 2,
+            }
+        elif "dpl" in args.searcher or "dyhpo" in args.searcher:
+            neps_kwargs["surrogate_model_args"] = {
+                "root_directory": neps_root_directory
+            }
+        neps.run(**neps_kwargs)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="gat ifbo")
@@ -60,5 +70,7 @@ if __name__ == "__main__":
     parser.add_argument("--leaky_relu_slope", type=float, default=0.2)
     parser.add_argument("--concat_heads", action="store_true", default=False)
     parser.add_argument("--n_heads", type=int, default=8)
+    parser.add_argument("--n_params", type=int, default=8)
+    parser.add_argument("--plot_only", action="store_true")
     args = parser.parse_args()
     main(args)
